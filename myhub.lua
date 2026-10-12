@@ -551,11 +551,28 @@ end
 
 RunService.RenderStepped:Connect(function()
 	if not espEnabled then return end
+	local myChar=player.Character
+	local myPos
+	if myChar then
+		local r=myChar:FindFirstChild("HumanoidRootPart") or myChar:FindFirstChildWhichIsA("BasePart")
+		myPos=r and r.Position
+	end
 	for tp,data in pairs(espObjects) do
 		local char=tp.Character
+		local charPos
 		if char then
-			if data.highlight then data.highlight.Enabled=true data.highlight.Adornee=char end
-			if data.billboard then data.billboard.Enabled=true data.billboard.Adornee=char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart") end
+			local h=char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
+			charPos=h and h.Position
+		end
+		local inRange=true
+		if myPos and charPos then inRange=(charPos-myPos).Magnitude<=ESP_RADIUS end
+		if char and data.highlight and inRange then
+			data.highlight.Enabled=true
+			data.highlight.Adornee=char
+			if data.billboard then
+				data.billboard.Enabled=true
+				data.billboard.Adornee=char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart")
+			end
 		else
 			if data.highlight then data.highlight.Enabled=false end
 			if data.billboard then data.billboard.Enabled=false end
@@ -644,6 +661,30 @@ end)
 toolBg.MouseButton1Click:Connect(function()
 	toolEnabled=not toolEnabled
 	if toolEnabled then sOn(toolBg,toolKnob) scanTools() else sOff(toolBg,toolKnob) clearAllToolESP() end
+end)
+
+RunService.RenderStepped:Connect(function()
+	if not toolEnabled then return end
+	local myChar=player.Character
+	local myPos
+	if myChar then
+		local r=myChar:FindFirstChild("HumanoidRootPart") or myChar:FindFirstChildWhichIsA("BasePart")
+		myPos=r and r.Position
+	end
+	for tool,data in pairs(toolEspObjects) do
+		if not tool.Parent then removeToolESP(tool)
+		else
+			local ap=tool:FindFirstChildWhichIsA("BasePart")
+			local toolPos=ap and ap.Position
+			local inRange=true
+			if myPos and toolPos then inRange=(toolPos-myPos).Magnitude<=ESP_RADIUS end
+			if data.highlight then data.highlight.Enabled=inRange end
+			if data.billboard then data.billboard.Enabled=inRange end
+			if data.billboard then data.billboard.Adornee=ap or tool end
+			if data.highlight then data.highlight.Adornee=tool end
+			if data.nameLabel then data.nameLabel.Text=tool.Name end
+		end
+	end
 end)
 
 local PROMPT_BLACKLIST={Painting=true,Drawer=true,Toilet=true,Regal=true,HidePrompt=true,Hide=true}
@@ -782,8 +823,10 @@ RunService.RenderStepped:Connect(function()
 			local ap
 			if target:IsA("Model") then ap=target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart")
 			elseif target:IsA("BasePart") then ap=target end
-			if data.billboard then data.billboard.Adornee=ap or target end
-			if data.highlight then data.highlight.Adornee=target end
+			local inRange=true
+			if myPos and ap then inRange=(ap.Position-myPos).Magnitude<=ESP_RADIUS end
+			if data.billboard then data.billboard.Enabled=inRange data.billboard.Adornee=ap or target end
+			if data.highlight then data.highlight.Enabled=inRange data.highlight.Adornee=target end
 			if data.nameLabel then data.nameLabel.Text=target.Name end
 			if data.promptLabel and data.prompt and data.prompt.Parent then
 				data.promptLabel.Text=data.prompt.ActionText~="" and data.prompt.ActionText or "Interact"
@@ -967,11 +1010,15 @@ local anticheatDisabled=false
 local function setupBypass(char)
 	if not char then char=player.Character end
 	if not char then return end
+	local remotes=game:GetService("ReplicatedStorage"):FindFirstChild("RemotesFolder")
+	if not remotes then return end
+	local climbLadder=remotes:FindFirstChild("ClimbLadder")
 	char:GetAttributeChangedSignal("Climbing"):Connect(function()
 		if char:GetAttribute("Climbing")==true and bypassEnabled then
-			task.wait(0.15)
+			task.wait(0.25)
 			if char:GetAttribute("Climbing")==true then
 				char:SetAttribute("Climbing",false)
+				if climbLadder then pcall(function() climbLadder:FireServer() end) end
 				anticheatDisabled=true
 				print("[BYPASS] Anticheat disabled")
 			end
