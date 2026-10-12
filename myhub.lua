@@ -3,10 +3,14 @@ local RunService=game:GetService("RunService")
 local UserInputService=game:GetService("UserInputService")
 local TweenService=game:GetService("TweenService")
 local Lighting=game:GetService("Lighting")
+local ReplicatedStorage=game:GetService("ReplicatedStorage")
+local ProximityPromptService=game:GetService("ProximityPromptService")
 local player=Players.LocalPlayer
 local playerGui=player:WaitForChild("PlayerGui")
 
 local ESP_RADIUS=200
+local DOOR_COLOR=Color3.fromRGB(80,255,80)
+local LEVER_COLOR=Color3.fromRGB(80,255,80)
 local isLocked=false
 
 local gui=Instance.new("ScreenGui")
@@ -393,6 +397,20 @@ local notifyBg,notifyKnob=makeSwitch(pages[3],52)
 makeLabel(pages[3],"ANTI-LAG",74)
 local lagBg,lagKnob=makeSwitch(pages[3],72)
 
+makeLabel(pages[3],"INFINITE ITEMS",94)
+local infBg,infKnob=makeSwitch(pages[3],92)
+
+local infHint=Instance.new("TextLabel")
+infHint.Size=UDim2.new(1,-20,0,12)
+infHint.Position=UDim2.new(0,10,0,112)
+infHint.BackgroundTransparency=1
+infHint.Text="Lockpick, Skeleton Key, Shears, Multitool"
+infHint.TextColor3=Color3.fromRGB(150,150,150)
+infHint.Font=Enum.Font.Gotham
+infHint.TextSize=9
+infHint.TextXAlignment=Enum.TextXAlignment.Left
+infHint.Parent=pages[3]
+
 showPage(1)
 
 local speedEnabled=false
@@ -407,6 +425,7 @@ local bypassEnabled=false
 local doorEnabled=false
 local notifyEnabled=false
 local lagEnabled=false
+local infiniteItemsEnabled=false
 
 local function cleanupSpeed()
 	spoofing=false
@@ -598,8 +617,22 @@ end)
 local toolEspObjects={}
 local function createToolESP(tool)
 	if toolEspObjects[tool] or not tool:IsA("Tool") then return end
+	local isDoor=tool.Name:sub(1,4)=="Door"
+	local isLever=tool.Name:sub(1,5)=="Lever" or tool.Name=="LeverToGate"
+	local hlColor
+	local textColor
+	if isDoor then
+		hlColor=DOOR_COLOR
+		textColor=DOOR_COLOR
+	elseif isLever then
+		hlColor=LEVER_COLOR
+		textColor=LEVER_COLOR
+	else
+		hlColor=Color3.fromRGB(0,200,255)
+		textColor=Color3.fromRGB(0,220,255)
+	end
 	local hl=Instance.new("Highlight")
-	hl.FillColor=Color3.fromRGB(0,200,255)
+	hl.FillColor=hlColor
 	hl.OutlineColor=Color3.fromRGB(255,255,255)
 	hl.FillTransparency=0.4
 	hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
@@ -616,7 +649,7 @@ local function createToolESP(tool)
 	nl.Size=UDim2.new(1,0,1,0)
 	nl.BackgroundTransparency=1
 	nl.Text=tool.Name
-	nl.TextColor3=Color3.fromRGB(0,220,255)
+	nl.TextColor3=textColor
 	nl.TextStrokeTransparency=0
 	nl.Font=Enum.Font.GothamBold
 	nl.TextSize=14
@@ -725,9 +758,23 @@ local function createPromptESP(prompt)
 	local target=getPromptTarget(prompt)
 	if not target or promptEspObjects[target] then return end
 	if target==player.Character or isBlacklisted(target) then return end
+	local isDoor=target.Name:sub(1,4)=="Door"
+	local isLever=target.Name:sub(1,5)=="Lever" or target.Name=="LeverToGate"
 	local isBlue=isBlueListed(target)
-	local fc=isBlue and Color3.fromRGB(0,150,255) or Color3.fromRGB(255,200,0)
-	local tc=isBlue and Color3.fromRGB(0,200,255) or Color3.fromRGB(255,220,0)
+	local fc,tc
+	if isDoor then
+		fc=DOOR_COLOR
+		tc=DOOR_COLOR
+	elseif isLever then
+		fc=LEVER_COLOR
+		tc=LEVER_COLOR
+	elseif isBlue then
+		fc=Color3.fromRGB(0,150,255)
+		tc=Color3.fromRGB(0,200,255)
+	else
+		fc=Color3.fromRGB(255,200,0)
+		tc=Color3.fromRGB(255,220,0)
+	end
 	local hl=Instance.new("Highlight")
 	hl.FillColor=fc
 	hl.OutlineColor=Color3.fromRGB(255,255,255)
@@ -875,7 +922,7 @@ instBg.MouseButton1Click:Connect(function()
 end)
 
 local MONSTER_PREFIXES={"Rush","Ambush","Eyes","Figure","Seek","Hide","Glitch","Jack"}
-local MONSTER_BLACKLIST={FigureAttach=true,FigureRig=true,FigureArm=true,FigureLeg=true,FigureHead=true,FigureTorso=true,FigureBody=true,Attachment=true,Attachments=true,Hitbox=true,HitBox=true,Rig=true,RootPart=true,Root=true,HidePrompt=true,HidePrompts=true,Prompt=true,Prompts=true,Trigger=true,Triggers=true,Detector=true,Sensor=true,Collision=true,Collider=true,Region=true,Zone=true,Area=true,Marker=true,Point=true,Spawn=true,Spawner=true,Anchor=true,Base=true,Stand=true,Stand1=true,Stand2=true,Stand3=true,Stand4=true,Stand5=true,Stand6=true,Stand7=true,Stand8=true}
+local MONSTER_BLACKLIST={SeekArms=true,FigureAttach=true,FigureRig=true,FigureArm=true,FigureLeg=true,FigureHead=true,FigureTorso=true,FigureBody=true,Attachment=true,Attachments=true,Hitbox=true,HitBox=true,Rig=true,RootPart=true,Root=true,HidePrompt=true,HidePrompts=true,Prompt=true,Prompts=true,Trigger=true,Triggers=true,Detector=true,Sensor=true,Collision=true,Collider=true,Region=true,Zone=true,Area=true,Marker=true,Point=true,Spawn=true,Spawner=true,Anchor=true,Base=true,Stand=true,Stand1=true,Stand2=true,Stand3=true,Stand4=true,Stand5=true,Stand6=true,Stand7=true,Stand8=true}
 local function isBlackMonster(t)
 	if not t then return false end
 	local n=string.lower(t.Name)
@@ -1010,7 +1057,7 @@ local anticheatDisabled=false
 local function setupBypass(char)
 	if not char then char=player.Character end
 	if not char then return end
-	local remotes=game:GetService("ReplicatedStorage"):FindFirstChild("RemotesFolder")
+	local remotes=ReplicatedStorage:FindFirstChild("RemotesFolder")
 	if not remotes then return end
 	local climbLadder=remotes:FindFirstChild("ClimbLadder")
 	char:GetAttributeChangedSignal("Climbing"):Connect(function()
@@ -1026,7 +1073,7 @@ local function setupBypass(char)
 	end)
 end
 
-local remotes=game:GetService("ReplicatedStorage"):WaitForChild("RemotesFolder",10)
+local remotes=ReplicatedStorage:WaitForChild("RemotesFolder",10)
 if remotes then
 	local cutscene=remotes:FindFirstChild("Cutscene")
 	if cutscene then
@@ -1178,6 +1225,51 @@ lagBg.MouseButton1Click:Connect(function()
 	if lagEnabled then sOn(lagBg,lagKnob) applyAntiLag() else sOff(lagBg,lagKnob) restoreAntiLag() end
 end)
 
+local ITEM_NAMES={["Lockpick"]="Lockpicks",["SkeletonKey"]="Skeleton Key",["Shears"]="Shears",["Multitool"]="Multitool"}
+
+local function firePrompt(prompt)
+	if not prompt then return end
+	pcall(function() fireproximityprompt(prompt) end)
+end
+
+ProximityPromptService.PromptTriggered:Connect(function(prompt)
+	if not infiniteItemsEnabled then return end
+	if not remotes then return end
+	local drops=workspace:FindFirstChild("Drops")
+	if not drops then return end
+	local dropRemote=remotes:FindFirstChild("DropItem")
+	if not dropRemote then return end
+	
+	local char=player.Character
+	if not char then return end
+	
+	local anyTool=char:FindFirstChildOfClass("Tool")
+	if not anyTool then return end
+	
+	local toolData=ITEM_NAMES[anyTool.Name]
+	if not toolData then return end
+	
+	drops.ChildAdded:Once(function(newTool)
+		local dropPrompt=newTool:FindFirstChild("ModulePrompt")
+		if dropPrompt then
+			firePrompt(dropPrompt)
+		end
+	end)
+	
+	pcall(function() dropRemote:FireServer(anyTool) end)
+end)
+
+infBg.MouseButton1Click:Connect(function()
+	infiniteItemsEnabled=not infiniteItemsEnabled
+	if infiniteItemsEnabled then
+		sOn(infBg,infKnob)
+		print("[INFINITE ITEMS] ON")
+	else
+		sOff(infBg,infKnob)
+		print("[INFINITE ITEMS] OFF")
+	end
+end)
+
 player.CharacterAdded:Connect(function()
 	task.wait(1)
 	if speedEnabled then cleanupSpeed() applySpeed() end
@@ -1222,6 +1314,7 @@ unloadButton.MouseButton1Click:Connect(function()
 	doorEnabled=false
 	notifyEnabled=false
 	lagEnabled=false
+	infiniteItemsEnabled=false
 	anticheatDisabled=false
 
 	pcall(cleanupSpeed)
