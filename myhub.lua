@@ -1,1871 +1,1201 @@
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Lighting = game:GetService("Lighting")
+local Players=game:GetService("Players")
+local RunService=game:GetService("RunService")
+local UserInputService=game:GetService("UserInputService")
+local TweenService=game:GetService("TweenService")
+local Lighting=game:GetService("Lighting")
+local player=Players.LocalPlayer
+local playerGui=player:WaitForChild("PlayerGui")
 
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local ESP_RADIUS=200
+local isLocked=false
 
-local connections = {}
-local function track(conn)
-	table.insert(connections, conn)
-	return conn
-end
+local gui=Instance.new("ScreenGui")
+gui.Name="MenuUI"
+gui.ResetOnSpawn=false
+gui.IgnoreGuiInset=true
+gui.DisplayOrder=999
+gui.Parent=playerGui
 
-local ESP_RADIUS = 200
-
-local gui = Instance.new("ScreenGui")
-gui.Name = "MenuUI"
-gui.ResetOnSpawn = false
-gui.IgnoreGuiInset = true
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-gui.DisplayOrder = 999
-gui.Parent = playerGui
-
-local function makeDraggable(frame, dragTarget, canDrag)
-	local dragging, dragStart, startPos, dragInput
-	local target = dragTarget or frame
-
-	track(target.InputBegan:Connect(function(input)
+local function makeDraggable(frame,dragTarget,canDrag)
+	local dragging,dragStart,startPos,dragInput
+	local target=dragTarget or frame
+	target.InputBegan:Connect(function(input)
 		if canDrag and not canDrag() then return end
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-			dragging = true
-			dragStart = input.Position
-			startPos = frame.Position
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-				end
-			end)
+		if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+			dragging=true dragStart=input.Position startPos=frame.Position
+			input.Changed:Connect(function() if input.UserInputState==Enum.UserInputState.End then dragging=false end end)
 		end
-	end))
-
-	track(target.InputChanged:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseMovement
-			or input.UserInputType == Enum.UserInputType.Touch then
-			dragInput = input
-		end
-	end))
-
-	track(UserInputService.InputChanged:Connect(function(input)
+	end)
+	target.InputChanged:Connect(function(input)
+		if input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch then dragInput=input end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
 		if not dragging then return end
-		if canDrag and not canDrag() then dragging = false return end
-		if input == dragInput
-			and (input.UserInputType == Enum.UserInputType.MouseMovement
-			or input.UserInputType == Enum.UserInputType.Touch) then
-			local delta = input.Position - dragStart
-			frame.Position = UDim2.new(
-				startPos.X.Scale,
-				startPos.X.Offset + delta.X,
-				startPos.Y.Scale,
-				startPos.Y.Offset + delta.Y
-			)
+		if canDrag and not canDrag() then dragging=false return end
+		if input==dragInput and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then
+			local delta=input.Position-dragStart
+			frame.Position=UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
 		end
-	end))
+	end)
 end
 
-local buttonHolder = Instance.new("Frame")
-buttonHolder.Name = "ButtonHolder"
-buttonHolder.Size = UDim2.new(0, 320, 0, 40)
-buttonHolder.Position = UDim2.new(0, 20, 0, 20)
-buttonHolder.BackgroundTransparency = 1
-buttonHolder.Active = true
-buttonHolder.Parent = gui
+local buttonHolder=Instance.new("Frame")
+buttonHolder.Size=UDim2.new(0,320,0,40)
+buttonHolder.Position=UDim2.new(0,20,0,20)
+buttonHolder.BackgroundTransparency=1
+buttonHolder.Active=true
+buttonHolder.Parent=gui
+local layout=Instance.new("UIListLayout")
+layout.FillDirection=Enum.FillDirection.Horizontal
+layout.Padding=UDim.new(0,10)
+layout.Parent=buttonHolder
 
-local layout = Instance.new("UIListLayout")
-layout.FillDirection = Enum.FillDirection.Horizontal
-layout.Padding = UDim.new(0, 10)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-layout.Parent = buttonHolder
-
-local function createButton(text, order, color, width)
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0, width or 80, 0, 40)
-	btn.BackgroundColor3 = color
-	btn.BackgroundTransparency = 0
-	btn.BorderSizePixel = 0
-	btn.Text = text
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 13
-	btn.LayoutOrder = order
-	btn.AutoButtonColor = false
-	btn.Active = true
-	btn.Parent = buttonHolder
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 8)
-	corner.Parent = btn
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(200, 150, 255)
-	stroke.Thickness = 2
-	stroke.Transparency = 0
-	stroke.Parent = btn
-
-	return btn
+local function makeBtn(text,order,color,width)
+	local b=Instance.new("TextButton")
+	b.Size=UDim2.new(0,width or 80,0,40)
+	b.BackgroundColor3=color
+	b.BorderSizePixel=0
+	b.Text=text
+	b.TextColor3=Color3.fromRGB(255,255,255)
+	b.Font=Enum.Font.GothamBold
+	b.TextSize=13
+	b.LayoutOrder=order
+	b.AutoButtonColor=false
+	b.Active=true
+	b.Parent=buttonHolder
+	local c=Instance.new("UICorner") c.CornerRadius=UDim.new(0,8) c.Parent=b
+	local s=Instance.new("UIStroke") s.Color=Color3.fromRGB(200,150,255) s.Thickness=2 s.Parent=b
+	return b
 end
 
-local toggleButton = createButton("Toggle", 1, Color3.fromRGB(75, 0, 130), 80)
-local lockButton   = createButton("Locked", 2, Color3.fromRGB(75, 0, 130), 90)
-local unloadButton = createButton("Выгрузить", 3, Color3.fromRGB(150, 0, 0), 100)
+local toggleButton=makeBtn("Toggle",1,Color3.fromRGB(75,0,130),80)
+local lockButton=makeBtn("Locked",2,Color3.fromRGB(75,0,130),90)
+local unloadButton=makeBtn("Выгрузить",3,Color3.fromRGB(150,0,0),100)
 
-local loadBox = Instance.new("TextLabel")
-loadBox.Size = UDim2.new(0, 180, 0, 30)
-loadBox.Position = UDim2.new(0, 20, 0, 70)
-loadBox.BackgroundColor3 = Color3.fromRGB(75, 0, 130)
-loadBox.BackgroundTransparency = 0
-loadBox.BorderSizePixel = 0
-loadBox.Text = "Загружено за 0.00 сек"
-loadBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-loadBox.Font = Enum.Font.GothamBold
-loadBox.TextSize = 14
-loadBox.Visible = true
-loadBox.Active = false
-loadBox.Parent = gui
+local menu=Instance.new("Frame")
+menu.Size=UDim2.new(0,280,0,300)
+menu.Position=UDim2.new(0,20,0,80)
+menu.BackgroundColor3=Color3.fromRGB(45,0,80)
+menu.BorderSizePixel=0
+menu.Visible=false
+menu.Active=true
+menu.Parent=gui
+local mc=Instance.new("UICorner") mc.CornerRadius=UDim.new(0,10) mc.Parent=menu
+local mst=Instance.new("UIStroke") mst.Color=Color3.fromRGB(180,100,255) mst.Thickness=2 mst.Parent=menu
 
-local loadBoxCorner = Instance.new("UICorner")
-loadBoxCorner.CornerRadius = UDim.new(0, 8)
-loadBoxCorner.Parent = loadBox
-
-local loadStroke = Instance.new("UIStroke")
-loadStroke.Color = Color3.fromRGB(180, 100, 255)
-loadStroke.Thickness = 2
-loadStroke.Transparency = 0
-loadStroke.Parent = loadBox
-
-local elapsed = 0
-local loadConn
-loadConn = track(RunService.RenderStepped:Connect(function(dt)
-	elapsed += dt
-	if loadBox and loadBox.Parent then
-		loadBox.Text = string.format("Загружено за %.2f сек", elapsed)
-	end
-end))
-
-task.delay(3, function()
-	if loadConn then loadConn:Disconnect() end
-	if loadBox and loadBox.Parent then
-		local t = TweenService:Create(loadBox,
-			TweenInfo.new(0.6, Enum.EasingStyle.Quint, Enum.EasingDirection.In),
-			{ BackgroundTransparency = 1, TextTransparency = 1, Position = UDim2.new(0, 20, 0, 50) })
-		t:Play()
-		t.Completed:Connect(function()
-			if loadBox then loadBox:Destroy() end
-		end)
-	end
-end)
-
-local menu = Instance.new("Frame")
-menu.Name = "Menu"
-menu.Size = UDim2.new(0, 260, 0, 230)
-menu.Position = UDim2.new(0, 20, 0, 80)
-menu.BackgroundColor3 = Color3.fromRGB(45, 0, 80)
-menu.BackgroundTransparency = 0
-menu.BorderSizePixel = 0
-menu.Visible = false
-menu.Active = true
-menu.Parent = gui
-
-local menuStroke = Instance.new("UIStroke")
-menuStroke.Color = Color3.fromRGB(180, 100, 255)
-menuStroke.Thickness = 2
-menuStroke.Transparency = 0
-menuStroke.Parent = menu
-
-local menuCorner = Instance.new("UICorner")
-menuCorner.CornerRadius = UDim.new(0, 10)
-menuCorner.Parent = menu
-
-local pages = {}
-
-local function createPage()
-	local p = Instance.new("Frame")
-	p.Size = UDim2.new(1, 0, 1, -40)
-	p.Position = UDim2.new(0, 0, 0, 0)
-	p.BackgroundTransparency = 1
-	p.Visible = false
-	p.Parent = menu
-	return p
+local pages={}
+for i=1,3 do
+	local p=Instance.new("Frame")
+	p.Size=UDim2.new(1,0,1,-40)
+	p.BackgroundTransparency=1
+	p.Visible=false
+	p.Parent=menu
+	pages[i]=p
 end
 
-pages[1] = createPage()
-pages[2] = createPage()
-pages[3] = createPage()
+local pageNav=Instance.new("Frame")
+pageNav.Size=UDim2.new(1,-20,0,30)
+pageNav.Position=UDim2.new(0,10,1,-35)
+pageNav.BackgroundTransparency=1
+pageNav.Parent=menu
 
-local pageNav = Instance.new("Frame")
-pageNav.Name = "PageNav"
-pageNav.Size = UDim2.new(1, -20, 0, 30)
-pageNav.Position = UDim2.new(0, 10, 1, -35)
-pageNav.BackgroundTransparency = 1
-pageNav.Parent = menu
+local prevBtn=Instance.new("TextButton")
+prevBtn.Size=UDim2.new(0,60,1,0)
+prevBtn.BackgroundColor3=Color3.fromRGB(90,0,160)
+prevBtn.BorderSizePixel=0
+prevBtn.Text="◀"
+prevBtn.TextColor3=Color3.fromRGB(255,255,255)
+prevBtn.Font=Enum.Font.GothamBold
+prevBtn.TextSize=18
+prevBtn.AutoButtonColor=false
+prevBtn.Parent=pageNav
+local pc=Instance.new("UICorner") pc.CornerRadius=UDim.new(0,6) pc.Parent=prevBtn
 
-local prevBtn = Instance.new("TextButton")
-prevBtn.Size = UDim2.new(0, 60, 1, 0)
-prevBtn.Position = UDim2.new(0, 0, 0, 0)
-prevBtn.BackgroundColor3 = Color3.fromRGB(90, 0, 160)
-prevBtn.BorderSizePixel = 0
-prevBtn.Text = "◀"
-prevBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-prevBtn.Font = Enum.Font.GothamBold
-prevBtn.TextSize = 18
-prevBtn.AutoButtonColor = false
-prevBtn.Parent = pageNav
+local nextBtn=Instance.new("TextButton")
+nextBtn.Size=UDim2.new(0,60,1,0)
+nextBtn.Position=UDim2.new(1,-60,0,0)
+nextBtn.BackgroundColor3=Color3.fromRGB(90,0,160)
+nextBtn.BorderSizePixel=0
+nextBtn.Text="▶"
+nextBtn.TextColor3=Color3.fromRGB(255,255,255)
+nextBtn.Font=Enum.Font.GothamBold
+nextBtn.TextSize=18
+nextBtn.AutoButtonColor=false
+nextBtn.Parent=pageNav
+local nc=Instance.new("UICorner") nc.CornerRadius=UDim.new(0,6) nc.Parent=nextBtn
 
-local prevCorner = Instance.new("UICorner")
-prevCorner.CornerRadius = UDim.new(0, 6)
-prevCorner.Parent = prevBtn
+local pageLabel=Instance.new("TextLabel")
+pageLabel.Size=UDim2.new(1,-140,1,0)
+pageLabel.Position=UDim2.new(0,70,0,0)
+pageLabel.BackgroundTransparency=1
+pageLabel.Text="1 / 3"
+pageLabel.TextColor3=Color3.fromRGB(220,200,255)
+pageLabel.Font=Enum.Font.GothamBold
+pageLabel.TextSize=14
+pageLabel.Parent=pageNav
 
-local nextBtn = Instance.new("TextButton")
-nextBtn.Size = UDim2.new(0, 60, 1, 0)
-nextBtn.Position = UDim2.new(1, -60, 0, 0)
-nextBtn.BackgroundColor3 = Color3.fromRGB(90, 0, 160)
-nextBtn.BorderSizePixel = 0
-nextBtn.Text = "▶"
-nextBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-nextBtn.Font = Enum.Font.GothamBold
-nextBtn.TextSize = 18
-nextBtn.AutoButtonColor = false
-nextBtn.Parent = pageNav
-
-local nextCorner = Instance.new("UICorner")
-nextCorner.CornerRadius = UDim.new(0, 6)
-nextCorner.Parent = nextBtn
-
-local pageLabel = Instance.new("TextLabel")
-pageLabel.Size = UDim2.new(1, -140, 1, 0)
-pageLabel.Position = UDim2.new(0, 70, 0, 0)
-pageLabel.BackgroundTransparency = 1
-pageLabel.Text = "1 / 3"
-pageLabel.TextColor3 = Color3.fromRGB(220, 200, 255)
-pageLabel.Font = Enum.Font.GothamBold
-pageLabel.TextSize = 14
-pageLabel.Parent = pageNav
-
-local currentPage = 1
-local totalPages = 3
-
+local currentPage=1
 local function showPage(n)
-	if n < 1 then n = totalPages end
-	if n > totalPages then n = 1 end
-	currentPage = n
+	if n<1 then n=3 end
+	if n>3 then n=1 end
+	currentPage=n
+	for i,p in ipairs(pages) do p.Visible=(i==n) end
+	pageLabel.Text=n.." / 3"
+end
+prevBtn.MouseButton1Click:Connect(function() showPage(currentPage-1) end)
+nextBtn.MouseButton1Click:Connect(function() showPage(currentPage+1) end)
 
-	for i, p in ipairs(pages) do
-		p.Visible = (i == n)
+local function makeLabel(parent,text,y)
+	local l=Instance.new("TextLabel")
+	l.Size=UDim2.new(1,-20,0,16)
+	l.Position=UDim2.new(0,10,0,y)
+	l.BackgroundTransparency=1
+	l.Text=text
+	l.TextColor3=Color3.fromRGB(220,200,255)
+	l.Font=Enum.Font.GothamBold
+	l.TextSize=11
+	l.TextXAlignment=Enum.TextXAlignment.Left
+	l.Parent=parent
+	return l
+end
+
+local function makeSwitch(parent,y)
+	local bg=Instance.new("TextButton")
+	bg.Size=UDim2.new(0,40,0,20)
+	bg.Position=UDim2.new(1,-50,0,y-2)
+	bg.BackgroundColor3=Color3.fromRGB(60,60,60)
+	bg.BorderSizePixel=0
+	bg.Text=""
+	bg.AutoButtonColor=false
+	bg.Parent=parent
+	local c=Instance.new("UICorner") c.CornerRadius=UDim.new(1,0) c.Parent=bg
+	local knob=Instance.new("Frame")
+	knob.Size=UDim2.new(0,14,0,14)
+	knob.Position=UDim2.new(0,3,0.5,-7)
+	knob.BackgroundColor3=Color3.fromRGB(255,255,255)
+	knob.BorderSizePixel=0
+	knob.Parent=bg
+	local kc=Instance.new("UICorner") kc.CornerRadius=UDim.new(1,0) kc.Parent=knob
+	return bg,knob
+end
+
+local function sOn(bg,knob)
+	TweenService:Create(bg,TweenInfo.new(0.2),{BackgroundColor3=Color3.fromRGB(120,0,200)}):Play()
+	TweenService:Create(knob,TweenInfo.new(0.2),{Position=UDim2.new(0,23,0.5,-7)}):Play()
+end
+
+local function sOff(bg,knob)
+	TweenService:Create(bg,TweenInfo.new(0.2),{BackgroundColor3=Color3.fromRGB(60,60,60)}):Play()
+	TweenService:Create(knob,TweenInfo.new(0.2),{Position=UDim2.new(0,3,0.5,-7)}):Play()
+end
+
+local function makeSlider(parent,y,min,max,def,onChange)
+	local sb=Instance.new("Frame")
+	sb.Size=UDim2.new(1,-20,0,8)
+	sb.Position=UDim2.new(0,10,0,y)
+	sb.BackgroundColor3=Color3.fromRGB(30,0,55)
+	sb.BorderSizePixel=0
+	sb.Active=true
+	sb.Parent=parent
+	local sc=Instance.new("UICorner") sc.CornerRadius=UDim.new(1,0) sc.Parent=sb
+	local fill=Instance.new("Frame")
+	fill.Size=UDim2.new((def-min)/(max-min),0,1,0)
+	fill.BackgroundColor3=Color3.fromRGB(180,100,255)
+	fill.BorderSizePixel=0
+	fill.Parent=sb
+	local fc=Instance.new("UICorner") fc.CornerRadius=UDim.new(1,0) fc.Parent=fill
+	local knob=Instance.new("Frame")
+	knob.Size=UDim2.new(0,14,0,14)
+	knob.Position=UDim2.new((def-min)/(max-min),0,0.5,0)
+	knob.AnchorPoint=Vector2.new(0,0.5)
+	knob.BackgroundColor3=Color3.fromRGB(255,255,255)
+	knob.BorderSizePixel=0
+	knob.ZIndex=2
+	knob.Parent=sb
+	local kc=Instance.new("UICorner") kc.CornerRadius=UDim.new(1,0) kc.Parent=knob
+	local dragging=false
+	local function setV(v)
+		v=math.clamp(v,min,max)
+		local a=(v-min)/(max-min)
+		fill.Size=UDim2.new(a,0,1,0)
+		knob.Position=UDim2.new(a,0,0.5,0)
+		if onChange then onChange(v) end
 	end
-	pageLabel.Text = tostring(n) .. " / " .. tostring(totalPages)
+	sb.InputBegan:Connect(function(input)
+		if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+			dragging=true
+			local p=input.Position.X-sb.AbsolutePosition.X
+			setV(min+math.clamp(p/sb.AbsoluteSize.X,0,1)*(max-min))
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch) then
+			local p=input.Position.X-sb.AbsolutePosition.X
+			setV(min+math.clamp(p/sb.AbsoluteSize.X,0,1)*(max-min))
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then dragging=false end
+	end)
+	return setV
 end
 
-track(prevBtn.MouseButton1Click:Connect(function()
-	showPage(currentPage - 1)
-end))
-
-track(nextBtn.MouseButton1Click:Connect(function()
-	showPage(currentPage + 1)
-end))
-
-local function makeLabel(parent, text, y)
-	local lbl = Instance.new("TextLabel")
-	lbl.Size = UDim2.new(1, -20, 0, 20)
-	lbl.Position = UDim2.new(0, 10, 0, y)
-	lbl.BackgroundTransparency = 1
-	lbl.Text = text
-	lbl.TextColor3 = Color3.fromRGB(220, 200, 255)
-	lbl.Font = Enum.Font.GothamBold
-	lbl.TextSize = 14
-	lbl.TextXAlignment = Enum.TextXAlignment.Left
-	lbl.Active = false
-	lbl.Parent = parent
-	return lbl
-end
-
-local function makeSwitch(parent, y)
-	local bg = Instance.new("TextButton")
-	bg.Size = UDim2.new(0, 50, 0, 24)
-	bg.Position = UDim2.new(1, -60, 0, y - 2)
-	bg.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-	bg.BorderSizePixel = 0
-	bg.Text = ""
-	bg.AutoButtonColor = false
-	bg.Active = true
-	bg.Parent = parent
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(1, 0)
-	corner.Parent = bg
-
-	local knob = Instance.new("Frame")
-	knob.Size = UDim2.new(0, 18, 0, 18)
-	knob.Position = UDim2.new(0, 3, 0.5, -9)
-	knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	knob.BorderSizePixel = 0
-	knob.Parent = bg
-
-	local knobCorner = Instance.new("UICorner")
-	knobCorner.CornerRadius = UDim.new(1, 0)
-	knobCorner.Parent = knob
-
-	return bg, knob
-end
-
-local function switchOn(bg, knob)
-	TweenService:Create(bg, TweenInfo.new(0.2), { BackgroundColor3 = Color3.fromRGB(120, 0, 200) }):Play()
-	TweenService:Create(knob, TweenInfo.new(0.2), { Position = UDim2.new(0, 29, 0.5, -9) }):Play()
-end
-
-local function switchOff(bg, knob)
-	TweenService:Create(bg, TweenInfo.new(0.2), { BackgroundColor3 = Color3.fromRGB(60, 60, 60) }):Play()
-	TweenService:Create(knob, TweenInfo.new(0.2), { Position = UDim2.new(0, 3, 0.5, -9) }):Play()
-end
-
-local featureEnabled = false
-local espEnabled = false
-local toolEspEnabled = false
-local promptEspEnabled = false
-local instantPromptEnabled = false
-local monsterEspEnabled = false
-local fullbrightEnabled = false
-local notifierEnabled = false
-local antiLagEnabled = false
-
-local FAKE_SPEED = 15.0
-local REAL_SPEED = 21.0
-local JUMP_POWER = 50
-
-local spoofing = false
+local REAL_SPEED=16
+local spoofing=false
 local bv
 local speedLoop
-
 local oldIndex
-local hookOk = false
-local hookSuccess = pcall(function()
-	oldIndex = hookmetamethod(game, "__index", newcclosure(function(self, key)
-		if spoofing and self:IsA("Humanoid") and self:IsDescendantOf(player.Character) then
-			if key == "WalkSpeed" then
-				return FAKE_SPEED
-			elseif key == "JumpPower" then
-				return JUMP_POWER
-			end
+local hookOk=false
+pcall(function()
+	oldIndex=hookmetamethod(game,"__index",newcclosure(function(self,key)
+		if spoofing and key=="WalkSpeed" and self:IsA("Humanoid") and self:IsDescendantOf(player.Character) then
+			return 15
 		end
-		return oldIndex(self, key)
+		return oldIndex(self,key)
 	end))
-	hookOk = true
+	hookOk=true
 end)
 
-makeLabel(pages[1], "WALKSPEED", 10)
-local switchBg, switchKnob = makeSwitch(pages[1], 8)
+makeLabel(pages[1],"WALKSPEED (16-150)",2)
+local wsVal=Instance.new("TextLabel")
+wsVal.Size=UDim2.new(1,-20,0,14)
+wsVal.Position=UDim2.new(0,10,0,18)
+wsVal.BackgroundTransparency=1
+wsVal.Text="REAL 16 / FAKE 15"
+wsVal.TextColor3=Color3.fromRGB(255,255,255)
+wsVal.Font=Enum.Font.GothamBold
+wsVal.TextSize=10
+wsVal.TextXAlignment=Enum.TextXAlignment.Left
+wsVal.Parent=pages[1]
 
-local wsValue = Instance.new("TextLabel")
-wsValue.Size = UDim2.new(1, -20, 0, 18)
-wsValue.Position = UDim2.new(0, 10, 0, 36)
-wsValue.BackgroundTransparency = 1
-wsValue.Text = "REAL 21.0 / FAKE 15.0"
-wsValue.TextColor3 = Color3.fromRGB(255, 255, 255)
-wsValue.Font = Enum.Font.GothamBold
-wsValue.TextSize = 13
-wsValue.TextXAlignment = Enum.TextXAlignment.Left
-wsValue.Active = false
-wsValue.Parent = pages[1]
+makeSlider(pages[1],36,16,150,REAL_SPEED,function(v)
+	REAL_SPEED=math.floor(v+0.5)
+	wsVal.Text="REAL "..REAL_SPEED.." / FAKE 15"
+end)
 
-local spoofStatus = Instance.new("TextLabel")
-spoofStatus.Size = UDim2.new(1, -20, 0, 18)
-spoofStatus.Position = UDim2.new(0, 10, 0, 60)
-spoofStatus.BackgroundTransparency = 1
-spoofStatus.Text = "Spoof: " .. (hookOk and "READY" or "NOT SUPPORTED")
-spoofStatus.TextColor3 = hookOk and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
-spoofStatus.Font = Enum.Font.GothamBold
-spoofStatus.TextSize = 12
-spoofStatus.TextXAlignment = Enum.TextXAlignment.Left
-spoofStatus.Active = false
-spoofStatus.Parent = pages[1]
+local spSt=Instance.new("TextLabel")
+spSt.Size=UDim2.new(1,-20,0,12)
+spSt.Position=UDim2.new(0,10,0,50)
+spSt.BackgroundTransparency=1
+spSt.Text="Spoof: "..(hookOk and "READY" or "NOT SUPPORTED")
+spSt.TextColor3=hookOk and Color3.fromRGB(100,255,100) or Color3.fromRGB(255,100,100)
+spSt.Font=Enum.Font.GothamBold
+spSt.TextSize=9
+spSt.TextXAlignment=Enum.TextXAlignment.Left
+spSt.Parent=pages[1]
 
-local function updateSwitchLook()
-	if featureEnabled then switchOn(switchBg, switchKnob) else switchOff(switchBg, switchKnob) end
+makeLabel(pages[1],"ENABLE SPEED",66)
+local sBg,sKnob=makeSwitch(pages[1],64)
+
+makeLabel(pages[1],"FOV ENABLE",86)
+local fovBg,fovKnob=makeSwitch(pages[1],84)
+
+local fovVal=Instance.new("TextLabel")
+fovVal.Size=UDim2.new(1,-20,0,12)
+fovVal.Position=UDim2.new(0,10,0,104)
+fovVal.BackgroundTransparency=1
+fovVal.Text="FOV: 70"
+fovVal.TextColor3=Color3.fromRGB(255,255,255)
+fovVal.Font=Enum.Font.GothamBold
+fovVal.TextSize=10
+fovVal.TextXAlignment=Enum.TextXAlignment.Left
+fovVal.Parent=pages[1]
+
+local currentFOV=70
+makeSlider(pages[1],120,1,120,70,function(v)
+	currentFOV=math.floor(v)
+	fovVal.Text="FOV: "..currentFOV
+end)
+
+makeLabel(pages[1],"FULLBRIGHT",138)
+local fbBg,fbKnob=makeSwitch(pages[1],136)
+
+local codeBtn=Instance.new("TextButton")
+codeBtn.Size=UDim2.new(1,-20,0,26)
+codeBtn.Position=UDim2.new(0,10,0,160)
+codeBtn.BackgroundColor3=Color3.fromRGB(90,0,160)
+codeBtn.BorderSizePixel=0
+codeBtn.Text="Показать код библиотеки"
+codeBtn.TextColor3=Color3.fromRGB(255,255,255)
+codeBtn.Font=Enum.Font.GothamBold
+codeBtn.TextSize=11
+codeBtn.AutoButtonColor=false
+codeBtn.Parent=pages[1]
+local cbc=Instance.new("UICorner") cbc.CornerRadius=UDim.new(0,6) cbc.Parent=codeBtn
+
+local function GetLibraryCode()
+	local char=player.Character
+	if not char then return "_____" end
+	local paper=char:FindFirstChild("LibraryHintPaper")
+		or char:FindFirstChild("LibraryHintPaperHard")
+		or player.Backpack:FindFirstChild("LibraryHintPaper")
+		or player.Backpack:FindFirstChild("LibraryHintPaperHard")
+	if paper and paper:FindFirstChild("UI") then
+		local code={"_","_","_","_","_"}
+		local permUI=playerGui:FindFirstChild("PermUI")
+		local hints=permUI and permUI:FindFirstChild("Hints")
+		if hints then
+			local hintChildren=hints:GetChildren()
+			local uiChildren=paper.UI:GetChildren()
+			for _,hint in ipairs(hintChildren) do
+				for _,uiChild in ipairs(uiChildren) do
+					if hint:IsA("ImageLabel") and uiChild:IsA("ImageLabel")
+						and hint.ImageRectOffset==uiChild.ImageRectOffset
+						and code[tonumber(uiChild.Name)] then
+						code[tonumber(uiChild.Name)]=hint.TextLabel.Text
+					end
+				end
+			end
+		end
+		return table.concat(code)
+	end
+	return "_____"
 end
-updateSwitchLook()
+
+codeBtn.MouseButton1Click:Connect(function()
+	local code=GetLibraryCode()
+	print("[LIBRARY CODE]",code)
+	codeBtn.Text="Код: "..code
+	task.delay(5,function() codeBtn.Text="Показать код библиотеки" end)
+end)
+
+makeLabel(pages[2],"ESP PLAYERS",2)
+local espBg,espKnob=makeSwitch(pages[2],0)
+makeLabel(pages[2],"ESP TOOLS",22)
+local toolBg,toolKnob=makeSwitch(pages[2],20)
+makeLabel(pages[2],"ESP PROMPTS",42)
+local promptBg,promptKnob=makeSwitch(pages[2],40)
+makeLabel(pages[2],"ESP MONSTERS",62)
+local monBg,monKnob=makeSwitch(pages[2],60)
+makeLabel(pages[2],"INSTANT PROMPT",82)
+local instBg,instKnob=makeSwitch(pages[2],80)
+
+makeLabel(pages[3],"ANTICHEAT BYPASS",2)
+local bypBg,bypKnob=makeSwitch(pages[3],0)
+
+local bypHint=Instance.new("TextLabel")
+bypHint.Size=UDim2.new(1,-20,0,12)
+bypHint.Position=UDim2.new(0,10,0,18)
+bypHint.BackgroundTransparency=1
+bypHint.Text="Климб лестницу"
+bypHint.TextColor3=Color3.fromRGB(180,180,180)
+bypHint.Font=Enum.Font.Gotham
+bypHint.TextSize=9
+bypHint.TextXAlignment=Enum.TextXAlignment.Left
+bypHint.Parent=pages[3]
+
+makeLabel(pages[3],"DOOR REACH",34)
+local doorBg,doorKnob=makeSwitch(pages[3],32)
+
+makeLabel(pages[3],"ENTITY NOTIFY",54)
+local notifyBg,notifyKnob=makeSwitch(pages[3],52)
+
+makeLabel(pages[3],"ANTI-LAG",74)
+local lagBg,lagKnob=makeSwitch(pages[3],72)
+
+showPage(1)
+
+local speedEnabled=false
+local fovEnabled=false
+local fbEnabled=false
+local espEnabled=false
+local toolEnabled=false
+local promptEnabled=false
+local monsterEnabled=false
+local instantEnabled=false
+local bypassEnabled=false
+local doorEnabled=false
+local notifyEnabled=false
+local lagEnabled=false
 
 local function cleanupSpeed()
-	spoofing = false
-	if speedLoop then speedLoop:Disconnect() speedLoop = nil end
+	spoofing=false
+	if speedLoop then speedLoop:Disconnect() speedLoop=nil end
 	if bv and bv.Parent then bv:Destroy() end
-	bv = nil
-
-	local char = player.Character
+	bv=nil
+	local char=player.Character
 	if char then
-		local hum = char:FindFirstChildOfClass("Humanoid")
-		if hum then hum.WalkSpeed = 15 end
-		local root = char:FindFirstChild("HumanoidRootPart")
-		if root then root.CustomPhysicalProperties = nil end
+		local hum=char:FindFirstChildOfClass("Humanoid")
+		if hum then hum.WalkSpeed=15 end
+		local root=char:FindFirstChild("HumanoidRootPart")
+		if root then root.CustomPhysicalProperties=nil end
 	end
 end
 
 local function applySpeed()
-	local char = player.Character
+	local char=player.Character
 	if not char then return end
-	local root = char:FindFirstChild("HumanoidRootPart")
-	local hum = char:FindFirstChildOfClass("Humanoid")
+	local root=char:FindFirstChild("HumanoidRootPart")
+	local hum=char:FindFirstChildOfClass("Humanoid")
 	if not root or not hum then return end
-
-	spoofing = true
-	hum.WalkSpeed = 15
-
+	spoofing=true
+	hum.WalkSpeed=15
 	if not bv or not bv.Parent then
-		bv = Instance.new("BodyVelocity")
-		bv.Name = "SpeedSpoof"
-		bv.MaxForce = Vector3.new(1e5, 0, 1e5)
-		bv.P = 1e5
-		bv.Parent = root
+		bv=Instance.new("BodyVelocity")
+		bv.MaxForce=Vector3.new(1e5,0,1e5)
+		bv.P=1e5
+		bv.Parent=root
 	end
-
-	root.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.3, 0.5, 1, 1)
-
+	root.CustomPhysicalProperties=PhysicalProperties.new(0.7,0.3,0.5,1,1)
 	if not speedLoop then
-		speedLoop = RunService.Heartbeat:Connect(function()
-			if not featureEnabled then return end
-			local c = player.Character
+		speedLoop=RunService.Heartbeat:Connect(function()
+			if not speedEnabled then return end
+			local c=player.Character
 			if not c then return end
-			local h = c:FindFirstChildOfClass("Humanoid")
+			local h=c:FindFirstChildOfClass("Humanoid")
 			if not h or not bv or not bv.Parent then return end
-			local md = h.MoveDirection
-			if md.Magnitude > 0 then
-				bv.Velocity = md * REAL_SPEED
-			else
-				bv.Velocity = Vector3.zero
-			end
+			local md=h.MoveDirection
+			if md.Magnitude>0 then bv.Velocity=md*REAL_SPEED
+			else bv.Velocity=Vector3.zero end
 		end)
 	end
 end
 
-track(switchBg.MouseButton1Click:Connect(function()
-	featureEnabled = not featureEnabled
-	updateSwitchLook()
-	if featureEnabled then
-		applySpeed()
+sBg.MouseButton1Click:Connect(function()
+	speedEnabled=not speedEnabled
+	if speedEnabled then sOn(sBg,sKnob) applySpeed() else sOff(sBg,sKnob) cleanupSpeed() end
+end)
+
+local fovLoop
+fovBg.MouseButton1Click:Connect(function()
+	fovEnabled=not fovEnabled
+	if fovEnabled then
+		sOn(fovBg,fovKnob)
+		local cam=workspace.CurrentCamera
+		if cam then cam.FieldOfView=currentFOV end
+		if not fovLoop then
+			fovLoop=RunService.RenderStepped:Connect(function()
+				if not fovEnabled then return end
+				local c=workspace.CurrentCamera
+				if c and c.FieldOfView~=currentFOV then c.FieldOfView=currentFOV end
+			end)
+		end
 	else
-		cleanupSpeed()
+		sOff(fovBg,fovKnob)
+		if fovLoop then fovLoop:Disconnect() fovLoop=nil end
+		local cam=workspace.CurrentCamera
+		if cam then cam.FieldOfView=70 end
 	end
-end))
+end)
 
-track(player.CharacterAdded:Connect(function()
-	task.wait(1)
-	if featureEnabled then
-		cleanupSpeed()
-		featureEnabled = true
-		applySpeed()
+local savedLight={}
+fbBg.MouseButton1Click:Connect(function()
+	fbEnabled=not fbEnabled
+	if fbEnabled then
+		sOn(fbBg,fbKnob)
+		if not savedLight.saved then
+			savedLight.Ambient=Lighting.Ambient
+			savedLight.OutdoorAmbient=Lighting.OutdoorAmbient
+			savedLight.Brightness=Lighting.Brightness
+			savedLight.ClockTime=Lighting.ClockTime
+			savedLight.GlobalShadows=Lighting.GlobalShadows
+			savedLight.FogEnd=Lighting.FogEnd
+			savedLight.saved=true
+		end
+		Lighting.Ambient=Color3.fromRGB(178,178,178)
+		Lighting.OutdoorAmbient=Color3.fromRGB(178,178,178)
+		Lighting.Brightness=3
+		Lighting.ClockTime=12
+		Lighting.GlobalShadows=false
+		Lighting.FogEnd=100000
+	else
+		sOff(fbBg,fbKnob)
+		if savedLight.saved then
+			Lighting.Ambient=savedLight.Ambient
+			Lighting.OutdoorAmbient=savedLight.OutdoorAmbient
+			Lighting.Brightness=savedLight.Brightness
+			Lighting.ClockTime=savedLight.ClockTime
+			Lighting.GlobalShadows=savedLight.GlobalShadows
+			Lighting.FogEnd=savedLight.FogEnd
+			savedLight={}
+		end
 	end
-end))
+end)
 
-makeLabel(pages[2], "ESP PLAYERS", 10)
-local espSwitchBg, espSwitchKnob = makeSwitch(pages[2], 8)
-makeLabel(pages[2], "ESP TOOLS", 45)
-local toolEspSwitchBg, toolEspSwitchKnob = makeSwitch(pages[2], 43)
-makeLabel(pages[2], "ESP PROMPTS", 80)
-local promptEspSwitchBg, promptEspSwitchKnob = makeSwitch(pages[2], 78)
-makeLabel(pages[2], "ESP MONSTERS", 115)
-local monSwitchBg, monSwitchKnob = makeSwitch(pages[2], 113)
-
-makeLabel(pages[3], "INSTANT PROMPT", 10)
-local instSwitchBg, instSwitchKnob = makeSwitch(pages[3], 8)
-makeLabel(pages[3], "FULLBRIGHT", 45)
-local fbSwitchBg, fbSwitchKnob = makeSwitch(pages[3], 43)
-makeLabel(pages[3], "RUSH NOTIFIER", 80)
-local notifSwitchBg, notifSwitchKnob = makeSwitch(pages[3], 78)
-makeLabel(pages[3], "ANTI-LAG", 115)
-local lagSwitchBg, lagSwitchKnob = makeSwitch(pages[3], 113)
-
-showPage(1)
-
-local espObjects = {}
-
-local function createESP(targetPlayer)
-	if targetPlayer == player then return end
-	if espObjects[targetPlayer] then return end
-
-	local highlight = Instance.new("Highlight")
-	highlight.Name = "ESP_Highlight"
-	highlight.FillColor = Color3.fromRGB(255, 0, 0)
-	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-	highlight.FillTransparency = 0.5
-	highlight.OutlineTransparency = 0
-	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	highlight.Adornee = nil
-	highlight.Parent = targetPlayer.Character or targetPlayer
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "ESP_Billboard"
-	billboard.Size = UDim2.new(0, 200, 0, 50)
-	billboard.StudsOffset = Vector3.new(0, 3, 0)
-	billboard.AlwaysOnTop = true
-	billboard.Parent = targetPlayer.Character or targetPlayer
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, 0, 0, 20)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = targetPlayer.Name
-	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	nameLabel.TextStrokeTransparency = 0
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextSize = 14
-	nameLabel.Parent = billboard
-
-	local hpLabel = Instance.new("TextLabel")
-	hpLabel.Size = UDim2.new(1, 0, 0, 16)
-	hpLabel.Position = UDim2.new(0, 0, 0, 20)
-	hpLabel.BackgroundTransparency = 1
-	hpLabel.Text = "HP: 100"
-	hpLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
-	hpLabel.TextStrokeTransparency = 0
-	hpLabel.Font = Enum.Font.Gotham
-	hpLabel.TextSize = 12
-	hpLabel.Parent = billboard
-
-	espObjects[targetPlayer] = {
-		highlight = highlight,
-		billboard = billboard,
-		hpLabel = hpLabel,
-	}
+local espObjects={}
+local function createESP(tp)
+	if tp==player or espObjects[tp] then return end
+	local hl=Instance.new("Highlight")
+	hl.FillColor=Color3.fromRGB(255,0,0)
+	hl.OutlineColor=Color3.fromRGB(255,255,255)
+	hl.FillTransparency=0.5
+	hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+	hl.Parent=tp.Character or tp
+	local bb=Instance.new("BillboardGui")
+	bb.Size=UDim2.new(0,200,0,30)
+	bb.StudsOffset=Vector3.new(0,3,0)
+	bb.AlwaysOnTop=true
+	bb.Parent=tp.Character or tp
+	local nl=Instance.new("TextLabel")
+	nl.Size=UDim2.new(1,0,0,20)
+	nl.BackgroundTransparency=1
+	nl.Text=tp.Name
+	nl.TextColor3=Color3.fromRGB(255,255,255)
+	nl.TextStrokeTransparency=0
+	nl.Font=Enum.Font.GothamBold
+	nl.TextSize=14
+	nl.Parent=bb
+	espObjects[tp]={highlight=hl,billboard=bb}
 end
-
-local function removeESP(targetPlayer)
-	local data = espObjects[targetPlayer]
-	if data then
-		if data.highlight then data.highlight:Destroy() end
-		if data.billboard then data.billboard:Destroy() end
-		espObjects[targetPlayer] = nil
+local function removeESP(tp)
+	local d=espObjects[tp]
+	if d then
+		if d.highlight then d.highlight:Destroy() end
+		if d.billboard then d.billboard:Destroy() end
+		espObjects[tp]=nil
 	end
 end
-
 local function clearAllESP()
-	for p, _ in pairs(espObjects) do
-		removeESP(p)
-	end
+	for p,_ in pairs(espObjects) do removeESP(p) end
 end
 
-track(RunService.RenderStepped:Connect(function()
+RunService.RenderStepped:Connect(function()
 	if not espEnabled then return end
-
-	local myChar = player.Character
-	local myPos
-	if myChar then
-		local root = myChar:FindFirstChild("HumanoidRootPart") or myChar:FindFirstChildWhichIsA("BasePart")
-		myPos = root and root.Position
-	end
-
-	for targetPlayer, data in pairs(espObjects) do
-		local char = targetPlayer.Character
-		local charPos
+	for tp,data in pairs(espObjects) do
+		local char=tp.Character
 		if char then
-			local h = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
-			charPos = h and h.Position
-		end
-
-		local inRange = true
-		if myPos and charPos then
-			inRange = (charPos - myPos).Magnitude <= ESP_RADIUS
-		end
-
-		if char and data.highlight and inRange then
-			data.highlight.Enabled = true
-			data.highlight.Adornee = char
-			if data.billboard then
-				data.billboard.Enabled = true
-				data.billboard.Adornee = char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart")
-			end
-			local hum = char:FindFirstChildOfClass("Humanoid")
-			if hum and data.hpLabel then
-				data.hpLabel.Text = string.format("HP: %d", math.floor(hum.Health))
-				local ratio = hum.Health / hum.MaxHealth
-				data.hpLabel.TextColor3 = Color3.fromRGB(
-					math.floor(255 * (1 - ratio)),
-					math.floor(255 * ratio),
-					0
-				)
-			end
+			if data.highlight then data.highlight.Enabled=true data.highlight.Adornee=char end
+			if data.billboard then data.billboard.Enabled=true data.billboard.Adornee=char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart") end
 		else
-			if data.highlight then data.highlight.Enabled = false end
-			if data.billboard then data.billboard.Enabled = false end
+			if data.highlight then data.highlight.Enabled=false end
+			if data.billboard then data.billboard.Enabled=false end
 		end
 	end
-end))
+end)
 
-local function watchCharacter(p)
-	track(p.CharacterAdded:Connect(function()
-		if espEnabled then
-			removeESP(p)
-			task.wait(0.5)
-			createESP(p)
-		end
-	end))
+local function watchChar(p)
+	p.CharacterAdded:Connect(function()
+		if espEnabled then removeESP(p) task.wait(0.5) createESP(p) end
+	end)
 end
+for _,p in ipairs(Players:GetPlayers()) do watchChar(p) end
+Players.PlayerAdded:Connect(function(p) watchChar(p) if espEnabled then createESP(p) end end)
+Players.PlayerRemoving:Connect(function(p) removeESP(p) end)
 
-for _, p in ipairs(Players:GetPlayers()) do watchCharacter(p) end
-track(Players.PlayerAdded:Connect(function(p)
-	watchCharacter(p)
-	if espEnabled then createESP(p) end
-end))
-track(Players.PlayerRemoving:Connect(function(p)
-	removeESP(p)
-end))
+espBg.MouseButton1Click:Connect(function()
+	espEnabled=not espEnabled
+	if espEnabled then sOn(espBg,espKnob) for _,p in ipairs(Players:GetPlayers()) do createESP(p) end
+	else sOff(espBg,espKnob) clearAllESP() end
+end)
 
-track(espSwitchBg.MouseButton1Click:Connect(function()
-	espEnabled = not espEnabled
-
-	if espEnabled then
-		switchOn(espSwitchBg, espSwitchKnob)
-		for _, p in ipairs(Players:GetPlayers()) do createESP(p) end
-	else
-		switchOff(espSwitchBg, espSwitchKnob)
-		clearAllESP()
-	end
-end))
-
-local toolEspObjects = {}
-
-local function createToolGhost(tool)
-	local ghostParts = {}
-	local ghostFolder = Instance.new("Folder")
-	ghostFolder.Name = "ESP_GhostFolder"
-	ghostFolder.Parent = workspace
-
-	for _, part in ipairs(tool:GetDescendants()) do
-		if part:IsA("BasePart") then
-			local ghost = part:Clone()
-			ghost.Name = "ESP_Ghost"
-			ghost.Anchored = true
-			ghost.CanCollide = false
-			ghost.CanQuery = false
-			ghost.CanTouch = false
-			ghost.Massless = true
-			ghost.Transparency = 0.35
-			ghost.Material = Enum.Material.Neon
-			ghost.Color = Color3.fromRGB(0, 200, 255)
-
-			for _, child in ipairs(ghost:GetChildren()) do
-				if child:IsA("Script") or child:IsA("LocalScript")
-					or child:IsA("Tool") or child:IsA("ProximityPrompt") then
-					child:Destroy()
-				end
-			end
-
-			ghost.Parent = ghostFolder
-
-			local link = Instance.new("ObjectValue")
-			link.Name = "ESP_Link"
-			link.Value = part
-			link.Parent = ghost
-
-			table.insert(ghostParts, ghost)
-		end
-	end
-
-	return ghostParts, ghostFolder
-end
-
-local function removeToolGhost(ghostParts, ghostFolder)
-	for _, ghost in ipairs(ghostParts) do
-		if ghost and ghost.Parent then ghost:Destroy() end
-	end
-	if ghostFolder and ghostFolder.Parent then
-		ghostFolder:Destroy()
-	end
-end
-
+local toolEspObjects={}
 local function createToolESP(tool)
-	if toolEspObjects[tool] then return end
-	if not tool:IsA("Tool") then return end
-
-	local highlight = Instance.new("Highlight")
-	highlight.Name = "ToolESP_Highlight"
-	highlight.FillColor = Color3.fromRGB(0, 200, 255)
-	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-	highlight.FillTransparency = 0.4
-	highlight.OutlineTransparency = 0
-	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	highlight.Adornee = tool
-	highlight.Parent = tool
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "ToolESP_Billboard"
-	billboard.Size = UDim2.new(0, 180, 0, 22)
-	billboard.StudsOffset = Vector3.new(0, 1.5, 0)
-	billboard.AlwaysOnTop = true
-	billboard.Parent = tool
-
-	local attachPart = tool:FindFirstChildWhichIsA("BasePart")
-	billboard.Adornee = attachPart or tool
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Name = "Name"
-	nameLabel.Size = UDim2.new(1, 0, 1, 0)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = tool.Name
-	nameLabel.TextColor3 = Color3.fromRGB(0, 220, 255)
-	nameLabel.TextStrokeTransparency = 0
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextSize = 14
-	nameLabel.Parent = billboard
-
-	local ghostParts, ghostFolder = {}, nil
-	if tool.Parent == workspace then
-		ghostParts, ghostFolder = createToolGhost(tool)
-	end
-
-	toolEspObjects[tool] = {
-		highlight = highlight,
-		billboard = billboard,
-		nameLabel = nameLabel,
-		ghostParts = ghostParts,
-		ghostFolder = ghostFolder,
-	}
+	if toolEspObjects[tool] or not tool:IsA("Tool") then return end
+	local hl=Instance.new("Highlight")
+	hl.FillColor=Color3.fromRGB(0,200,255)
+	hl.OutlineColor=Color3.fromRGB(255,255,255)
+	hl.FillTransparency=0.4
+	hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+	hl.Adornee=tool
+	hl.Parent=tool
+	local bb=Instance.new("BillboardGui")
+	bb.Size=UDim2.new(0,180,0,22)
+	bb.StudsOffset=Vector3.new(0,1.5,0)
+	bb.AlwaysOnTop=true
+	bb.Parent=tool
+	local ap=tool:FindFirstChildWhichIsA("BasePart")
+	bb.Adornee=ap or tool
+	local nl=Instance.new("TextLabel")
+	nl.Size=UDim2.new(1,0,1,0)
+	nl.BackgroundTransparency=1
+	nl.Text=tool.Name
+	nl.TextColor3=Color3.fromRGB(0,220,255)
+	nl.TextStrokeTransparency=0
+	nl.Font=Enum.Font.GothamBold
+	nl.TextSize=14
+	nl.Parent=bb
+	toolEspObjects[tool]={highlight=hl,billboard=bb,nameLabel=nl}
 end
-
 local function removeToolESP(tool)
-	local data = toolEspObjects[tool]
-	if data then
-		if data.highlight then data.highlight:Destroy() end
-		if data.billboard then data.billboard:Destroy() end
-		if data.ghostParts then removeToolGhost(data.ghostParts, data.ghostFolder) end
-		toolEspObjects[tool] = nil
+	local d=toolEspObjects[tool]
+	if d then
+		if d.highlight then d.highlight:Destroy() end
+		if d.billboard then d.billboard:Destroy() end
+		toolEspObjects[tool]=nil
 	end
 end
-
 local function clearAllToolESP()
-	for tool, _ in pairs(toolEspObjects) do
-		removeToolESP(tool)
-	end
+	for t,_ in pairs(toolEspObjects) do removeToolESP(t) end
 end
-
-local function refreshToolESP(tool)
-	if not tool:IsA("Tool") then return end
-	local data = toolEspObjects[tool]
-	if not data then return end
-
-	if tool.Parent == workspace then
-		if not data.ghostParts or #data.ghostParts == 0 then
-			local ghostParts, ghostFolder = createToolGhost(tool)
-			data.ghostParts = ghostParts
-			data.ghostFolder = ghostFolder
-		end
-	else
-		if data.ghostParts and #data.ghostParts > 0 then
-			removeToolGhost(data.ghostParts, data.ghostFolder)
-			data.ghostParts = {}
-			data.ghostFolder = nil
-		end
-	end
-end
-
-local function scanToolsAndApply()
-	for _, obj in ipairs(workspace:GetDescendants()) do
+local function scanTools()
+	for _,obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("Tool") then
-			if toolEspEnabled then createToolESP(obj) else removeToolESP(obj) end
+			if toolEnabled then createToolESP(obj) else removeToolESP(obj) end
 		end
 	end
-	for _, p in ipairs(Players:GetPlayers()) do
-		local char = p.Character
+	for _,p in ipairs(Players:GetPlayers()) do
+		local char=p.Character
 		if char then
-			for _, obj in ipairs(char:GetChildren()) do
-				if obj:IsA("Tool") then
-					if toolEspEnabled then createToolESP(obj) else removeToolESP(obj) end
-				end
+			for _,obj in ipairs(char:GetChildren()) do
+				if obj:IsA("Tool") then if toolEnabled then createToolESP(obj) else removeToolESP(obj) end end
 			end
 		end
-		local backpack = p:FindFirstChildOfClass("Backpack")
-		if backpack then
-			for _, obj in ipairs(backpack:GetChildren()) do
-				if obj:IsA("Tool") then
-					if toolEspEnabled then createToolESP(obj) else removeToolESP(obj) end
-				end
+		local bp=p:FindFirstChildOfClass("Backpack")
+		if bp then
+			for _,obj in ipairs(bp:GetChildren()) do
+				if obj:IsA("Tool") then if toolEnabled then createToolESP(obj) else removeToolESP(obj) end end
 			end
 		end
 	end
 end
+workspace.DescendantAdded:Connect(function(obj)
+	if obj:IsA("Tool") and toolEnabled then task.wait(0.1) createToolESP(obj) end
+end)
+toolBg.MouseButton1Click:Connect(function()
+	toolEnabled=not toolEnabled
+	if toolEnabled then sOn(toolBg,toolKnob) scanTools() else sOff(toolBg,toolKnob) clearAllToolESP() end
+end)
 
-track(workspace.DescendantAdded:Connect(function(obj)
-	if obj:IsA("Tool") and toolEspEnabled then
-		task.wait(0.1)
-		createToolESP(obj)
-		task.defer(refreshToolESP, obj)
-	end
-end))
-
-local function hookToolAncestry(tool)
-	track(tool.AncestryChanged:Connect(function()
-		if toolEspEnabled then
-			task.defer(refreshToolESP, tool)
-		end
-	end))
-end
-
-for _, obj in ipairs(workspace:GetDescendants()) do
-	if obj:IsA("Tool") then hookToolAncestry(obj) end
-end
-
-track(workspace.DescendantAdded:Connect(function(obj)
-	if obj:IsA("Tool") then
-		hookToolAncestry(obj)
-	end
-end))
-
-track(Players.PlayerAdded:Connect(function(p)
-	track(p.ChildAdded:Connect(function(child)
-		if child:IsA("Backpack") then
-			track(child.ChildAdded:Connect(function(item)
-				if item:IsA("Tool") and toolEspEnabled then
-					createToolESP(item)
-				end
-			end))
-			track(child.ChildRemoved:Connect(function(item)
-				if item:IsA("Tool") then removeToolESP(item) end
-			end))
-		end
-	end))
-	track(p.CharacterAdded:Connect(function(char)
-		track(char.ChildAdded:Connect(function(item)
-			if item:IsA("Tool") and toolEspEnabled then
-				createToolESP(item)
-			end
-		end))
-		track(char.ChildRemoved:Connect(function(item)
-			if item:IsA("Tool") then removeToolESP(item) end
-		end))
-	end))
-end))
-
-track(toolEspSwitchBg.MouseButton1Click:Connect(function()
-	toolEspEnabled = not toolEspEnabled
-
-	if toolEspEnabled then
-		switchOn(toolEspSwitchBg, toolEspSwitchKnob)
-		scanToolsAndApply()
-	else
-		switchOff(toolEspSwitchBg, toolEspSwitchKnob)
-		clearAllToolESP()
-	end
-end))
-
-track(RunService.RenderStepped:Connect(function()
-	if not toolEspEnabled then return end
-
-	local myChar = player.Character
-	local myPos
-	if myChar then
-		local root = myChar:FindFirstChild("HumanoidRootPart") or myChar:FindFirstChildWhichIsA("BasePart")
-		myPos = root and root.Position
-	end
-
-	for tool, data in pairs(toolEspObjects) do
-		if not tool.Parent then
-			removeToolESP(tool)
-		else
-			local attach = tool:FindFirstChildWhichIsA("BasePart")
-			local toolPos = attach and attach.Position
-
-			local inRange = true
-			if myPos and toolPos then
-				inRange = (toolPos - myPos).Magnitude <= ESP_RADIUS
-			end
-
-			if data.highlight then
-				data.highlight.Enabled = inRange
-			end
-			if data.billboard then
-				data.billboard.Enabled = inRange
-			end
-			if data.ghostParts then
-				for _, ghost in ipairs(data.ghostParts) do
-					if ghost and ghost.Parent then
-						ghost.Transparency = inRange and 0.35 or 1
-					end
-				end
-			end
-
-			if data.billboard then
-				data.billboard.Adornee = attach or tool
-			end
-			if data.highlight then
-				data.highlight.Adornee = tool
-			end
-			if data.nameLabel then
-				data.nameLabel.Text = tool.Name
-			end
-
-			if data.ghostParts and inRange then
-				for _, ghost in ipairs(data.ghostParts) do
-					if ghost and ghost.Parent then
-						local link = ghost:FindFirstChild("ESP_Link")
-						local original = link and link.Value
-						if original and original.Parent then
-							ghost.CFrame = original.CFrame
-							ghost.Size = original.Size
-						else
-							ghost:Destroy()
-						end
-					end
-				end
-			end
-		end
-	end
-end))
-
-local promptEspObjects = {}
-
-local PROMPT_BLACKLIST = {
-	Painting = true,
-	Drawer = true,
-	Toilet = true,
-	Regal = true,
-	HidePrompt = true,
-	Hide = true,
-}
-
-local PROMPT_BLUELIST = {
-	Key = true,
-}
+local PROMPT_BLACKLIST={Painting=true,Drawer=true,Toilet=true,Regal=true,HidePrompt=true,Hide=true}
+local PROMPT_BLUELIST={Key=true}
 
 local function isBlacklisted(target)
 	if not target then return false end
-	local name = target.Name
+	local name=target.Name
 	if PROMPT_BLACKLIST[name] then return true end
-	for blocked, _ in pairs(PROMPT_BLACKLIST) do
-		if string.find(string.lower(name), string.lower(blocked), 1, true) then
-			return true
-		end
+	for blocked,_ in pairs(PROMPT_BLACKLIST) do
+		if string.find(string.lower(name),string.lower(blocked),1,true) then return true end
 	end
 	return false
 end
 
 local function isBlueListed(target)
 	if not target then return false end
-	local name = string.lower(target.Name)
-	for blue, _ in pairs(PROMPT_BLUELIST) do
-		if string.sub(name, 1, #blue) == string.lower(blue) then
-			return true
-		end
+	local name=string.lower(target.Name)
+	for blue,_ in pairs(PROMPT_BLUELIST) do
+		if string.sub(name,1,#blue)==string.lower(blue) then return true end
 	end
 	return false
 end
 
 local function getPromptTarget(prompt)
-	local parent = prompt.Parent
+	local parent=prompt.Parent
 	if not parent then return nil end
-	if parent:IsA("Model") then
-		return parent
+	if parent:IsA("Model") then return parent
 	elseif parent:IsA("BasePart") then
-		local model = parent:FindFirstAncestorOfClass("Model")
+		local model=parent:FindFirstAncestorOfClass("Model")
 		return model or parent
 	end
 	return nil
 end
 
-local function getTargetPosition(target)
-	if target:IsA("Model") then
-		if target.PrimaryPart then return target.PrimaryPart.Position end
-		local part = target:FindFirstChildWhichIsA("BasePart")
-		return part and part.Position or nil
-	elseif target:IsA("BasePart") then
-		return target.Position
-	end
-	return nil
-end
-
+local promptEspObjects={}
 local function createPromptESP(prompt)
-	local target = getPromptTarget(prompt)
-	if not target then return end
-	if promptEspObjects[target] then return end
-	if target == player.Character then return end
-	if isBlacklisted(target) then return end
-
-	local isBlue = isBlueListed(target)
-	local fillColor = isBlue and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(255, 200, 0)
-	local textColor = isBlue and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(255, 220, 0)
-
-	local highlight = Instance.new("Highlight")
-	highlight.Name = "PromptESP_Highlight"
-	highlight.FillColor = fillColor
-	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-	highlight.FillTransparency = 0.5
-	highlight.OutlineTransparency = 0
-	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	highlight.Adornee = target
-	highlight.Parent = target
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "PromptESP_Billboard"
-	billboard.Size = UDim2.new(0, 220, 0, 58)
-	billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-	billboard.AlwaysOnTop = true
-
-	local attachPart
-	if target:IsA("Model") then
-		attachPart = target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart")
-	elseif target:IsA("BasePart") then
-		attachPart = target
-	end
-	billboard.Adornee = attachPart or target
-	billboard.Parent = attachPart or target
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, 0, 0, 18)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = target.Name
-	nameLabel.TextColor3 = textColor
-	nameLabel.TextStrokeTransparency = 0
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextSize = 14
-	nameLabel.Parent = billboard
-
-	local promptLabel = Instance.new("TextLabel")
-	promptLabel.Size = UDim2.new(1, 0, 0, 16)
-	promptLabel.Position = UDim2.new(0, 0, 0, 18)
-	promptLabel.BackgroundTransparency = 1
-	promptLabel.Text = prompt.ActionText ~= "" and prompt.ActionText or "Interact"
-	promptLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	promptLabel.TextStrokeTransparency = 0
-	promptLabel.Font = Enum.Font.Gotham
-	promptLabel.TextSize = 12
-	promptLabel.Parent = billboard
-
-	local distLabel = Instance.new("TextLabel")
-	distLabel.Size = UDim2.new(1, 0, 0, 16)
-	distLabel.Position = UDim2.new(0, 0, 0, 34)
-	distLabel.BackgroundTransparency = 1
-	distLabel.Text = "[0 studs]"
-	distLabel.TextColor3 = Color3.fromRGB(180, 255, 180)
-	distLabel.TextStrokeTransparency = 0
-	distLabel.Font = Enum.Font.GothamBold
-	distLabel.TextSize = 12
-	distLabel.Parent = billboard
-
-	promptEspObjects[target] = {
-		highlight = highlight,
-		billboard = billboard,
-		nameLabel = nameLabel,
-		promptLabel = promptLabel,
-		distLabel = distLabel,
-		prompt = prompt,
-	}
+	local target=getPromptTarget(prompt)
+	if not target or promptEspObjects[target] then return end
+	if target==player.Character or isBlacklisted(target) then return end
+	local isBlue=isBlueListed(target)
+	local fc=isBlue and Color3.fromRGB(0,150,255) or Color3.fromRGB(255,200,0)
+	local tc=isBlue and Color3.fromRGB(0,200,255) or Color3.fromRGB(255,220,0)
+	local hl=Instance.new("Highlight")
+	hl.FillColor=fc
+	hl.OutlineColor=Color3.fromRGB(255,255,255)
+	hl.FillTransparency=0.5
+	hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+	hl.Adornee=target
+	hl.Parent=target
+	local bb=Instance.new("BillboardGui")
+	bb.Size=UDim2.new(0,220,0,58)
+	bb.StudsOffset=Vector3.new(0,2.5,0)
+	bb.AlwaysOnTop=true
+	local ap
+	if target:IsA("Model") then ap=target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart")
+	elseif target:IsA("BasePart") then ap=target end
+	bb.Adornee=ap or target
+	bb.Parent=ap or target
+	local nl=Instance.new("TextLabel")
+	nl.Size=UDim2.new(1,0,0,18)
+	nl.BackgroundTransparency=1
+	nl.Text=target.Name
+	nl.TextColor3=tc
+	nl.TextStrokeTransparency=0
+	nl.Font=Enum.Font.GothamBold
+	nl.TextSize=14
+	nl.Parent=bb
+	local pl=Instance.new("TextLabel")
+	pl.Size=UDim2.new(1,0,0,16)
+	pl.Position=UDim2.new(0,0,0,18)
+	pl.BackgroundTransparency=1
+	pl.Text=prompt.ActionText~="" and prompt.ActionText or "Interact"
+	pl.TextColor3=Color3.fromRGB(255,255,255)
+	pl.TextStrokeTransparency=0
+	pl.Font=Enum.Font.Gotham
+	pl.TextSize=12
+	pl.Parent=bb
+	local dl=Instance.new("TextLabel")
+	dl.Size=UDim2.new(1,0,0,16)
+	dl.Position=UDim2.new(0,0,0,34)
+	dl.BackgroundTransparency=1
+	dl.Text="[0 studs]"
+	dl.TextColor3=Color3.fromRGB(180,255,180)
+	dl.TextStrokeTransparency=0
+	dl.Font=Enum.Font.GothamBold
+	dl.TextSize=12
+	dl.Parent=bb
+	promptEspObjects[target]={highlight=hl,billboard=bb,nameLabel=nl,promptLabel=pl,distLabel=dl,prompt=prompt}
 end
-
 local function removePromptESP(target)
-	local data = promptEspObjects[target]
-	if data then
-		if data.highlight then data.highlight:Destroy() end
-		if data.billboard then data.billboard:Destroy() end
-		promptEspObjects[target] = nil
+	local d=promptEspObjects[target]
+	if d then
+		if d.highlight then d.highlight:Destroy() end
+		if d.billboard then d.billboard:Destroy() end
+		promptEspObjects[target]=nil
 	end
 end
-
 local function clearAllPromptESP()
-	for target, _ in pairs(promptEspObjects) do
-		removePromptESP(target)
-	end
+	for t,_ in pairs(promptEspObjects) do removePromptESP(t) end
 end
-
-local function scanPromptsAndApply()
-	for _, obj in ipairs(workspace:GetDescendants()) do
+local function scanPrompts()
+	for _,obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("ProximityPrompt") then
-			local target = getPromptTarget(obj)
+			local target=getPromptTarget(obj)
 			if target then
-				if promptEspEnabled and not isBlacklisted(target) then
-					createPromptESP(obj)
-				else
-					removePromptESP(target)
-				end
+				if promptEnabled and not isBlacklisted(target) then createPromptESP(obj)
+				else removePromptESP(target) end
 			end
 		end
 	end
 end
-
-track(workspace.DescendantAdded:Connect(function(obj)
-	if obj:IsA("ProximityPrompt") then
+workspace.DescendantAdded:Connect(function(obj)
+	if obj:IsA("ProximityPrompt") and promptEnabled then
 		task.wait(0.1)
-		if promptEspEnabled then
-			local target = getPromptTarget(obj)
-			if target and not isBlacklisted(target) then
-				createPromptESP(obj)
-			end
-		end
+		local target=getPromptTarget(obj)
+		if target and not isBlacklisted(target) then createPromptESP(obj) end
 	end
-end))
+end)
+promptBg.MouseButton1Click:Connect(function()
+	promptEnabled=not promptEnabled
+	if promptEnabled then sOn(promptBg,promptKnob) scanPrompts() else sOff(promptBg,promptKnob) clearAllPromptESP() end
+end)
 
-track(workspace.DescendantRemoving:Connect(function(obj)
-	if obj:IsA("ProximityPrompt") then
-		local target = getPromptTarget(obj)
-		if target and promptEspObjects[target] then
-			removePromptESP(target)
-		end
-	end
-end))
-
-track(promptEspSwitchBg.MouseButton1Click:Connect(function()
-	promptEspEnabled = not promptEspEnabled
-
-	if promptEspEnabled then
-		switchOn(promptEspSwitchBg, promptEspSwitchKnob)
-		scanPromptsAndApply()
-	else
-		switchOff(promptEspSwitchBg, promptEspSwitchKnob)
-		clearAllPromptESP()
-	end
-end))
-
-track(RunService.RenderStepped:Connect(function()
-	if not promptEspEnabled then return end
-
-	local char = player.Character
+RunService.RenderStepped:Connect(function()
+	if not promptEnabled then return end
+	local char=player.Character
 	local myPos
 	if char then
-		local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
-		myPos = root and root.Position
+		local r=char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
+		myPos=r and r.Position
 	end
-
-	for target, data in pairs(promptEspObjects) do
-		if not target.Parent then
-			removePromptESP(target)
+	for target,data in pairs(promptEspObjects) do
+		if not target.Parent then removePromptESP(target)
 		else
-			local targetPos = getTargetPosition(target)
-			local inRange = true
-			if myPos and targetPos then
-				inRange = (targetPos - myPos).Magnitude <= ESP_RADIUS
-			end
-
-			if data.highlight then
-				data.highlight.Enabled = inRange
-			end
-			if data.billboard then
-				data.billboard.Enabled = inRange
-			end
-
-			local attachPart
-			if target:IsA("Model") then
-				attachPart = target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart")
-			elseif target:IsA("BasePart") then
-				attachPart = target
-			end
-			if data.billboard then
-				data.billboard.Adornee = attachPart or target
-			end
-			if data.highlight then
-				data.highlight.Adornee = target
-			end
-			if data.nameLabel then
-				data.nameLabel.Text = target.Name
-			end
+			local ap
+			if target:IsA("Model") then ap=target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart")
+			elseif target:IsA("BasePart") then ap=target end
+			if data.billboard then data.billboard.Adornee=ap or target end
+			if data.highlight then data.highlight.Adornee=target end
+			if data.nameLabel then data.nameLabel.Text=target.Name end
 			if data.promptLabel and data.prompt and data.prompt.Parent then
-				data.promptLabel.Text = data.prompt.ActionText ~= "" and data.prompt.ActionText or "Interact"
+				data.promptLabel.Text=data.prompt.ActionText~="" and data.prompt.ActionText or "Interact"
 			end
-
-			if data.distLabel and myPos and targetPos then
-				data.distLabel.Text = string.format("[%.0f studs]", (targetPos - myPos).Magnitude)
+			if data.distLabel and myPos and ap then
+				data.distLabel.Text=string.format("[%.0f studs]",(ap.Position-myPos).Magnitude)
 			end
 		end
 	end
-end))
+end)
 
-local savedPrompts = {}
-
+local savedPrompts={}
 local function makePromptInstant(prompt)
 	if not prompt:IsA("ProximityPrompt") then return end
 	if savedPrompts[prompt] then return end
-
-	savedPrompts[prompt] = {
-		HoldDuration = prompt.HoldDuration,
-		MaxActivationDistance = prompt.MaxActivationDistance,
-		RequiresLineOfSight = prompt.RequiresLineOfSight,
-		ClickablePrompt = prompt.ClickablePrompt,
-	}
-
-	prompt.HoldDuration = 0
-	prompt.RequiresLineOfSight = false
-	prompt.ClickablePrompt = true
+	savedPrompts[prompt]={HoldDuration=prompt.HoldDuration,MaxActivationDistance=prompt.MaxActivationDistance,RequiresLineOfSight=prompt.RequiresLineOfSight,ClickablePrompt=prompt.ClickablePrompt}
+	prompt.HoldDuration=0
+	prompt.RequiresLineOfSight=false
+	prompt.ClickablePrompt=true
 end
-
 local function restorePrompt(prompt)
-	local saved = savedPrompts[prompt]
-	if not saved then return end
+	local s=savedPrompts[prompt]
+	if not s then return end
 	if prompt and prompt.Parent then
-		prompt.HoldDuration = saved.HoldDuration
-		prompt.MaxActivationDistance = saved.MaxActivationDistance
-		prompt.RequiresLineOfSight = saved.RequiresLineOfSight
-		prompt.ClickablePrompt = saved.ClickablePrompt
+		prompt.HoldDuration=s.HoldDuration
+		prompt.MaxActivationDistance=s.MaxActivationDistance
+		prompt.RequiresLineOfSight=s.RequiresLineOfSight
+		prompt.ClickablePrompt=s.ClickablePrompt
 	end
-	savedPrompts[prompt] = nil
+	savedPrompts[prompt]=nil
 end
-
-local function applyInstantToAll()
-	for _, obj in ipairs(workspace:GetDescendants()) do
+local function applyInstant()
+	for _,obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("ProximityPrompt") then
-			if instantPromptEnabled then
-				makePromptInstant(obj)
-			else
-				restorePrompt(obj)
-			end
+			if instantEnabled then makePromptInstant(obj) else restorePrompt(obj) end
 		end
 	end
 end
+workspace.DescendantAdded:Connect(function(obj)
+	if obj:IsA("ProximityPrompt") and instantEnabled then task.wait(0.1) makePromptInstant(obj) end
+end)
+instBg.MouseButton1Click:Connect(function()
+	instantEnabled=not instantEnabled
+	if instantEnabled then sOn(instBg,instKnob) else sOff(instBg,instKnob) end
+	applyInstant()
+end)
 
-track(workspace.DescendantAdded:Connect(function(obj)
-	if obj:IsA("ProximityPrompt") and instantPromptEnabled then
-		task.wait(0.1)
-		makePromptInstant(obj)
-	end
-end))
-
-track(workspace.DescendantRemoving:Connect(function(obj)
-	if obj:IsA("ProximityPrompt") and savedPrompts[obj] then
-		savedPrompts[obj] = nil
-	end
-end))
-
-track(instSwitchBg.MouseButton1Click:Connect(function()
-	instantPromptEnabled = not instantPromptEnabled
-
-	if instantPromptEnabled then
-		switchOn(instSwitchBg, instSwitchKnob)
-	else
-		switchOff(instSwitchBg, instSwitchKnob)
-	end
-	applyInstantToAll()
-end))
-
-local function restoreAllPrompts()
-	for prompt, _ in pairs(savedPrompts) do
-		restorePrompt(prompt)
-	end
-	savedPrompts = {}
-end
-
-local monsterEspObjects = {}
-
-local MONSTER_PREFIXES = { "Rush", "Ambush", "Eyes", "Figure", "Seek", "Hide", "Glitch", "Jack" }
-
-local MONSTER_BLACKLIST = {
-	FigureAttach = true,
-	FigureRig = true,
-	FigureArm = true,
-	FigureLeg = true,
-	FigureHead = true,
-	FigureTorso = true,
-	FigureBody = true,
-	Attachment = true,
-	Attachments = true,
-	Hitbox = true,
-	HitBox = true,
-	Rig = true,
-	RootPart = true,
-	Root = true,
-	HidePrompt = true,
-	HidePrompts = true,
-	Prompt = true,
-	Prompts = true,
-	Trigger = true,
-	Triggers = true,
-	Detector = true,
-	Sensor = true,
-	Collision = true,
-	Collider = true,
-	Region = true,
-	Zone = true,
-	Area = true,
-	Marker = true,
-	Point = true,
-	Spawn = true,
-	Spawner = true,
-	Anchor = true,
-	Base = true,
-	Stand = true,
-	Stand1 = true,
-	Stand2 = true,
-	Stand3 = true,
-	Stand4 = true,
-	Stand5 = true,
-	Stand6 = true,
-	Stand7 = true,
-	Stand8 = true,
-}
-
-local function isBlacklistedMonster(target)
-	if not target then return false end
-	local name = string.lower(target.Name)
-	for blocked, _ in pairs(MONSTER_BLACKLIST) do
-		if string.find(name, string.lower(blocked), 1, true) then
-			return true
-		end
+local MONSTER_PREFIXES={"Rush","Ambush","Eyes","Figure","Seek","Hide","Glitch","Jack"}
+local MONSTER_BLACKLIST={FigureAttach=true,FigureRig=true,FigureArm=true,FigureLeg=true,FigureHead=true,FigureTorso=true,FigureBody=true,Attachment=true,Attachments=true,Hitbox=true,HitBox=true,Rig=true,RootPart=true,Root=true,HidePrompt=true,HidePrompts=true,Prompt=true,Prompts=true,Trigger=true,Triggers=true,Detector=true,Sensor=true,Collision=true,Collider=true,Region=true,Zone=true,Area=true,Marker=true,Point=true,Spawn=true,Spawner=true,Anchor=true,Base=true,Stand=true,Stand1=true,Stand2=true,Stand3=true,Stand4=true,Stand5=true,Stand6=true,Stand7=true,Stand8=true}
+local function isBlackMonster(t)
+	if not t then return false end
+	local n=string.lower(t.Name)
+	for b,_ in pairs(MONSTER_BLACKLIST) do
+		if string.find(n,string.lower(b),1,true) then return true end
 	end
 	return false
 end
-
-local function isPlayerCharacter(target)
-	if not target or not target:IsA("Model") then return false end
-	local p = Players:GetPlayerFromCharacter(target)
-	return p ~= nil
+local function isPlayerChar(t)
+	if not t or not t:IsA("Model") then return false end
+	return Players:GetPlayerFromCharacter(t)~=nil
 end
-
-local function isMonster(target)
-	if not target then return false end
-	if isBlacklistedMonster(target) then return false end
-	local name = string.lower(target.Name)
-	for _, prefix in ipairs(MONSTER_PREFIXES) do
-		if string.sub(name, 1, #prefix) == string.lower(prefix) then
-			return true
-		end
+local function isMonster(t)
+	if not t or isBlackMonster(t) then return false end
+	local n=string.lower(t.Name)
+	for _,p in ipairs(MONSTER_PREFIXES) do
+		if string.sub(n,1,#p)==string.lower(p) then return true end
 	end
 	return false
 end
-
-local function isRig(target)
-	if not target or not target:IsA("Model") then return false end
-	if isPlayerCharacter(target) then return false end
-	if isMonster(target) then return false end
-	if isBlacklistedMonster(target) then return false end
-	if not target:FindFirstChildOfClass("Humanoid") then return false end
-	if not target:FindFirstChild("HumanoidRootPart") then return false end
+local function isRig(t)
+	if not t or not t:IsA("Model") then return false end
+	if isPlayerChar(t) or isMonster(t) or isBlackMonster(t) then return false end
+	if not t:FindFirstChildOfClass("Humanoid") then return false end
+	if not t:FindFirstChild("HumanoidRootPart") then return false end
 	return true
 end
-
-local function shouldESPMonster(target)
-	if isPlayerCharacter(target) then return false end
-	if isBlacklistedMonster(target) then return false end
-	return isMonster(target) or isRig(target)
+local function shouldMonster(t)
+	if isPlayerChar(t) or isBlackMonster(t) then return false end
+	return isMonster(t) or isRig(t)
 end
 
-local function getMonsterPosition(target)
-	if target:IsA("Model") then
-		if target.PrimaryPart then return target.PrimaryPart.Position end
-		local part = target:FindFirstChildWhichIsA("BasePart")
-		return part and part.Position or nil
-	elseif target:IsA("BasePart") then
-		return target.Position
-	end
-	return nil
-end
-
-local function getMonsterColor(target)
-	if isMonster(target) then
-		return Color3.fromRGB(255, 0, 0),
-		       Color3.fromRGB(255, 100, 100),
-		       Color3.fromRGB(255, 50, 50)
-	else
-		return Color3.fromRGB(255, 140, 0),
-		       Color3.fromRGB(255, 200, 100),
-		       Color3.fromRGB(255, 180, 60)
-	end
-end
-
+local monsterEspObjects={}
 local function createMonsterESP(target)
-	if monsterEspObjects[target] then return end
-	if not shouldESPMonster(target) then return end
-
-	local fillColor, outlineColor, textColor = getMonsterColor(target)
-
-	local highlight = Instance.new("Highlight")
-	highlight.Name = "MonsterESP_Highlight"
-	highlight.FillColor = fillColor
-	highlight.OutlineColor = outlineColor
-	highlight.FillTransparency = 0.4
-	highlight.OutlineTransparency = 0
-	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	highlight.Adornee = target
-	highlight.Parent = target
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "MonsterESP_Billboard"
-	billboard.Size = UDim2.new(0, 220, 0, 40)
-	billboard.StudsOffset = Vector3.new(0, 3, 0)
-	billboard.AlwaysOnTop = true
-
-	local attachPart
-	if target:IsA("Model") then
-		attachPart = target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart")
-	elseif target:IsA("BasePart") then
-		attachPart = target
-	end
-	billboard.Adornee = attachPart or target
-	billboard.Parent = attachPart or target
-
-	local nameLabel = Instance.new("TextLabel")
-	nameLabel.Size = UDim2.new(1, 0, 0, 20)
-	nameLabel.BackgroundTransparency = 1
-	nameLabel.Text = (isMonster(target) and "⚠ " or "[Rig] ") .. target.Name .. (isMonster(target) and " ⚠" or "")
-	nameLabel.TextColor3 = textColor
-	nameLabel.TextStrokeTransparency = 0
-	nameLabel.Font = Enum.Font.GothamBold
-	nameLabel.TextSize = 16
-	nameLabel.Parent = billboard
-
-	local distLabel = Instance.new("TextLabel")
-	distLabel.Size = UDim2.new(1, 0, 0, 16)
-	distLabel.Position = UDim2.new(0, 0, 0, 20)
-	distLabel.BackgroundTransparency = 1
-	distLabel.Text = "[0 studs]"
-	distLabel.TextColor3 = Color3.fromRGB(255, 220, 180)
-	distLabel.TextStrokeTransparency = 0
-	distLabel.Font = Enum.Font.GothamBold
-	distLabel.TextSize = 12
-	distLabel.Parent = billboard
-
-	monsterEspObjects[target] = {
-		highlight = highlight,
-		billboard = billboard,
-		nameLabel = nameLabel,
-		distLabel = distLabel,
-	}
-end
-
-local function removeMonsterESP(target)
-	local data = monsterEspObjects[target]
-	if data then
-		if data.highlight then data.highlight:Destroy() end
-		if data.billboard then data.billboard:Destroy() end
-		monsterEspObjects[target] = nil
-	end
-end
-
-local function clearAllMonsterESP()
-	for target, _ in pairs(monsterEspObjects) do
-		removeMonsterESP(target)
-	end
-end
-
-local function scanMonstersAndApply()
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if shouldESPMonster(obj) then
-			if monsterEspEnabled then
-				createMonsterESP(obj)
-			else
-				removeMonsterESP(obj)
-			end
-		end
-	end
-end
-
-track(workspace.DescendantAdded:Connect(function(obj)
-	if monsterEspEnabled and shouldESPMonster(obj) then
-		task.wait(0.1)
-		createMonsterESP(obj)
-	end
-
-	if monsterEspEnabled and obj:IsA("Humanoid") then
-		local parent = obj.Parent
-		if parent and parent:IsA("Model") and shouldESPMonster(parent) then
-			task.wait(0.1)
-			createMonsterESP(parent)
-		end
-	end
-end))
-
-track(workspace.DescendantRemoving:Connect(function(obj)
-	if monsterEspObjects[obj] then
-		removeMonsterESP(obj)
-	end
-	if obj:IsA("Humanoid") and obj.Parent and monsterEspObjects[obj.Parent] then
-		removeMonsterESP(obj.Parent)
-	end
-end))
-
-track(monSwitchBg.MouseButton1Click:Connect(function()
-	monsterEspEnabled = not monsterEspEnabled
-
-	if monsterEspEnabled then
-		switchOn(monSwitchBg, monSwitchKnob)
-		scanMonstersAndApply()
+	if monsterEspObjects[target] or not shouldMonster(target) then return end
+	local fc,oc,tc
+	if isMonster(target) then
+		fc=Color3.fromRGB(255,0,0)
+		oc=Color3.fromRGB(255,100,100)
+		tc=Color3.fromRGB(255,50,50)
 	else
-		switchOff(monSwitchBg, monSwitchKnob)
-		clearAllMonsterESP()
+		fc=Color3.fromRGB(255,140,0)
+		oc=Color3.fromRGB(255,200,100)
+		tc=Color3.fromRGB(255,180,60)
 	end
-end))
-
-track(RunService.RenderStepped:Connect(function()
-	if not monsterEspEnabled then return end
-
-	local char = player.Character
+	local hl=Instance.new("Highlight")
+	hl.FillColor=fc
+	hl.OutlineColor=oc
+	hl.FillTransparency=0.4
+	hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
+	hl.Adornee=target
+	hl.Parent=target
+	local bb=Instance.new("BillboardGui")
+	bb.Size=UDim2.new(0,220,0,40)
+	bb.StudsOffset=Vector3.new(0,3,0)
+	bb.AlwaysOnTop=true
+	local ap
+	if target:IsA("Model") then ap=target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart")
+	elseif target:IsA("BasePart") then ap=target end
+	bb.Adornee=ap or target
+	bb.Parent=ap or target
+	local nl=Instance.new("TextLabel")
+	nl.Size=UDim2.new(1,0,0,20)
+	nl.BackgroundTransparency=1
+	nl.Text=(isMonster(target) and "⚠ " or "[Rig] ")..target.Name..(isMonster(target) and " ⚠" or "")
+	nl.TextColor3=tc
+	nl.TextStrokeTransparency=0
+	nl.Font=Enum.Font.GothamBold
+	nl.TextSize=16
+	nl.Parent=bb
+	local dl=Instance.new("TextLabel")
+	dl.Size=UDim2.new(1,0,0,16)
+	dl.Position=UDim2.new(0,0,0,20)
+	dl.BackgroundTransparency=1
+	dl.Text="[0 studs]"
+	dl.TextColor3=Color3.fromRGB(255,220,180)
+	dl.TextStrokeTransparency=0
+	dl.Font=Enum.Font.GothamBold
+	dl.TextSize=12
+	dl.Parent=bb
+	monsterEspObjects[target]={highlight=hl,billboard=bb,nameLabel=nl,distLabel=dl}
+end
+local function removeMonsterESP(target)
+	local d=monsterEspObjects[target]
+	if d then
+		if d.highlight then d.highlight:Destroy() end
+		if d.billboard then d.billboard:Destroy() end
+		monsterEspObjects[target]=nil
+	end
+end
+local function clearAllMonsterESP()
+	for t,_ in pairs(monsterEspObjects) do removeMonsterESP(t) end
+end
+local function scanMonsters()
+	for _,obj in ipairs(workspace:GetDescendants()) do
+		if shouldMonster(obj) then
+			if monsterEnabled then createMonsterESP(obj) else removeMonsterESP(obj) end
+		end
+	end
+end
+workspace.DescendantAdded:Connect(function(obj)
+	if monsterEnabled and shouldMonster(obj) then task.wait(0.1) createMonsterESP(obj) end
+end)
+monBg.MouseButton1Click:Connect(function()
+	monsterEnabled=not monsterEnabled
+	if monsterEnabled then sOn(monBg,monKnob) scanMonsters() else sOff(monBg,monKnob) clearAllMonsterESP() end
+end)
+RunService.RenderStepped:Connect(function()
+	if not monsterEnabled then return end
+	local char=player.Character
 	local myPos
 	if char then
-		local root = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
-		myPos = root and root.Position
+		local r=char:FindFirstChild("HumanoidRootPart") or char:FindFirstChildWhichIsA("BasePart")
+		myPos=r and r.Position
 	end
-
-	for target, data in pairs(monsterEspObjects) do
-		if not target.Parent then
-			removeMonsterESP(target)
+	for target,data in pairs(monsterEspObjects) do
+		if not target.Parent then removeMonsterESP(target)
 		else
-			local attachPart
-			if target:IsA("Model") then
-				attachPart = target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart")
-			elseif target:IsA("BasePart") then
-				attachPart = target
-			end
-			if data.billboard then
-				data.billboard.Adornee = attachPart or target
-			end
-			if data.highlight then
-				data.highlight.Adornee = target
-			end
-			if data.nameLabel then
-				if isMonster(target) then
-					data.nameLabel.Text = "⚠ " .. target.Name .. " ⚠"
-				else
-					data.nameLabel.Text = "[Rig] " .. target.Name
-				end
-			end
-			if data.distLabel and myPos then
-				local tPos = getMonsterPosition(target)
-				if tPos then
-					data.distLabel.Text = string.format("[%.0f studs]", (tPos - myPos).Magnitude)
-				end
+			local ap
+			if target:IsA("Model") then ap=target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart")
+			elseif target:IsA("BasePart") then ap=target end
+			if data.billboard then data.billboard.Adornee=ap or target end
+			if data.highlight then data.highlight.Adornee=target end
+			if data.distLabel and myPos and ap then
+				data.distLabel.Text=string.format("[%.0f studs]",(ap.Position-myPos).Magnitude)
 			end
 		end
 	end
-end))
+end)
 
-local savedLighting = {}
-
-local function applyFullbright()
-	if not savedLighting.saved then
-		savedLighting.Ambient = Lighting.Ambient
-		savedLighting.OutdoorAmbient = Lighting.OutdoorAmbient
-		savedLighting.Brightness = Lighting.Brightness
-		savedLighting.ClockTime = Lighting.ClockTime
-		savedLighting.GlobalShadows = Lighting.GlobalShadows
-		savedLighting.FogEnd = Lighting.FogEnd
-		savedLighting.FogStart = Lighting.FogStart
-		savedLighting.saved = true
-	end
-
-	if fullbrightEnabled then
-		Lighting.Ambient = Color3.fromRGB(178, 178, 178)
-		Lighting.OutdoorAmbient = Color3.fromRGB(178, 178, 178)
-		Lighting.Brightness = 3
-		Lighting.ClockTime = 12
-		Lighting.GlobalShadows = false
-		Lighting.FogEnd = 100000
-		Lighting.FogStart = 0
-	else
-		Lighting.Ambient = savedLighting.Ambient
-		Lighting.OutdoorAmbient = savedLighting.OutdoorAmbient
-		Lighting.Brightness = savedLighting.Brightness
-		Lighting.ClockTime = savedLighting.ClockTime
-		Lighting.GlobalShadows = savedLighting.GlobalShadows
-		Lighting.FogEnd = savedLighting.FogEnd
-		Lighting.FogStart = savedLighting.FogStart
-	end
-end
-
-track(fbSwitchBg.MouseButton1Click:Connect(function()
-	fullbrightEnabled = not fullbrightEnabled
-
-	if fullbrightEnabled then
-		switchOn(fbSwitchBg, fbSwitchKnob)
-	else
-		switchOff(fbSwitchBg, fbSwitchKnob)
-	end
-	applyFullbright()
-end))
-
-local function restoreFullbright()
-	if savedLighting.saved then
-		Lighting.Ambient = savedLighting.Ambient
-		Lighting.OutdoorAmbient = savedLighting.OutdoorAmbient
-		Lighting.Brightness = savedLighting.Brightness
-		Lighting.ClockTime = savedLighting.ClockTime
-		Lighting.GlobalShadows = savedLighting.GlobalShadows
-		Lighting.FogEnd = savedLighting.FogEnd
-		Lighting.FogStart = savedLighting.FogStart
-		savedLighting = {}
-	end
-end
-
-local notifiedMonsters = {}
-
-local MONSTER_NOTIFY_LIST = {
-	Rush = true,
-	Ambush = true,
-	Eyes = true,
-	Figure = true,
-	Seek = true,
-	Hide = true,
-	Glitch = true,
-	Jack = true,
-}
-
-local function isNotifyMonster(target)
-	if not target then return false end
-	if isBlacklistedMonster(target) then return false end
-	local name = target.Name
-	if MONSTER_NOTIFY_LIST[name] then return true end
-	for mn, _ in pairs(MONSTER_NOTIFY_LIST) do
-		if string.sub(string.lower(name), 1, #mn) == string.lower(mn) then
-			return true
-		end
-	end
-	return false
-end
-
-local notifGui = Instance.new("ScreenGui")
-notifGui.Name = "RushNotifier"
-notifGui.ResetOnSpawn = false
-notifGui.IgnoreGuiInset = true
-notifGui.DisplayOrder = 998
-notifGui.Parent = playerGui
-
-local function showNotification(monsterName)
-	local frame = Instance.new("Frame")
-	frame.Size = UDim2.new(0, 320, 0, 80)
-	frame.Position = UDim2.new(0.5, -160, 0, -100)
-	frame.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-	frame.BorderSizePixel = 0
-	frame.Parent = notifGui
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 12)
-	corner.Parent = frame
-
-	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(255, 100, 100)
-	stroke.Thickness = 3
-	stroke.Parent = frame
-
-	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, 0, 0, 30)
-	title.Position = UDim2.new(0, 0, 0, 10)
-	title.BackgroundTransparency = 1
-	title.Text = "⚠ МОНСТР СПАВНИЛСЯ ⚠"
-	title.TextColor3 = Color3.fromRGB(255, 255, 255)
-	title.Font = Enum.Font.GothamBold
-	title.TextSize = 20
-	title.Parent = frame
-
-	local nameLbl = Instance.new("TextLabel")
-	nameLbl.Size = UDim2.new(1, 0, 0, 26)
-	nameLbl.Position = UDim2.new(0, 0, 0, 42)
-	nameLbl.BackgroundTransparency = 1
-	nameLbl.Text = monsterName
-	nameLbl.TextColor3 = Color3.fromRGB(255, 220, 100)
-	nameLbl.Font = Enum.Font.GothamBold
-	nameLbl.TextSize = 22
-	nameLbl.Parent = frame
-
-	local sound = Instance.new("Sound")
-	sound.SoundId = "rbxassetid://4896323111"
-	sound.Volume = 2
-	sound.Parent = frame
-	sound:Play()
-
-	TweenService:Create(frame,
-		TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Position = UDim2.new(0.5, -160, 0, 40) }):Play()
-
-	task.delay(3, function()
-		local t = TweenService:Create(frame,
-			TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-			{ Position = UDim2.new(0.5, -160, 0, -100), BackgroundTransparency = 1 })
-		t:Play()
-		for _, obj in ipairs(frame:GetDescendants()) do
-			if obj:IsA("TextLabel") then
-				TweenService:Create(obj, TweenInfo.new(0.4), { TextTransparency = 1 }):Play()
-			elseif obj:IsA("UIStroke") then
-				TweenService:Create(obj, TweenInfo.new(0.4), { Transparency = 1 }):Play()
+local anticheatDisabled=false
+local function setupBypass(char)
+	if not char then char=player.Character end
+	if not char then return end
+	char:GetAttributeChangedSignal("Climbing"):Connect(function()
+		if char:GetAttribute("Climbing")==true and bypassEnabled then
+			task.wait(0.15)
+			if char:GetAttribute("Climbing")==true then
+				char:SetAttribute("Climbing",false)
+				anticheatDisabled=true
+				print("[BYPASS] Anticheat disabled")
 			end
 		end
-		t.Completed:Connect(function()
-			frame:Destroy()
-		end)
 	end)
 end
 
-track(workspace.DescendantAdded:Connect(function(obj)
-	if not notifierEnabled then return end
-	if isNotifyMonster(obj) then
-		if not notifiedMonsters[obj] then
-			notifiedMonsters[obj] = true
-			showNotification(obj.Name)
-			task.delay(15, function()
-				notifiedMonsters[obj] = nil
+local remotes=game:GetService("ReplicatedStorage"):WaitForChild("RemotesFolder",10)
+if remotes then
+	local cutscene=remotes:FindFirstChild("Cutscene")
+	if cutscene then
+		cutscene.OnClientEvent:Connect(function(name)
+			if anticheatDisabled and not tostring(name):find("SewerSeek") then anticheatDisabled=false end
+		end)
+	end
+	local enemy=remotes:FindFirstChild("UseEnemyModule")
+	if enemy then
+		enemy.OnClientEvent:Connect(function(m)
+			if m=="Void" or m=="Glitch" then anticheatDisabled=false end
+		end)
+	end
+end
+
+bypBg.MouseButton1Click:Connect(function()
+	bypassEnabled=not bypassEnabled
+	if bypassEnabled then
+		sOn(bypBg,bypKnob)
+		if player.Character then setupBypass(player.Character) end
+		print("[BYPASS] Enabled - climb a ladder")
+	else
+		sOff(bypBg,bypKnob)
+		anticheatDisabled=false
+	end
+end)
+
+local doorLoop
+doorBg.MouseButton1Click:Connect(function()
+	doorEnabled=not doorEnabled
+	if doorEnabled then
+		sOn(doorBg,doorKnob)
+		if not doorLoop then
+			doorLoop=RunService.Heartbeat:Connect(function()
+				if not doorEnabled then return end
+				local char=player.Character
+				if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+				local myPos=char.HumanoidRootPart.Position
+				for _,obj in ipairs(workspace:GetDescendants()) do
+					if obj.Name=="ClientOpen" and obj:IsA("RemoteEvent") then
+						local door=obj.Parent
+						if door and door:FindFirstChild("Door") then
+							if (door.Door.Position-myPos).Magnitude<75 then pcall(function() obj:FireServer() end) end
+						end
+					end
+				end
 			end)
 		end
-	end
-end))
-
-track(notifSwitchBg.MouseButton1Click:Connect(function()
-	notifierEnabled = not notifierEnabled
-
-	if notifierEnabled then
-		switchOn(notifSwitchBg, notifSwitchKnob)
 	else
-		switchOff(notifSwitchBg, notifSwitchKnob)
-		notifiedMonsters = {}
+		sOff(doorBg,doorKnob)
+		if doorLoop then doorLoop:Disconnect() doorLoop=nil end
 	end
-end))
+end)
 
-local savedAntiLag = {}
+local notifGui=Instance.new("ScreenGui")
+notifGui.Name="EntityNotifier"
+notifGui.ResetOnSpawn=false
+notifGui.IgnoreGuiInset=true
+notifGui.DisplayOrder=998
+notifGui.Parent=playerGui
 
+local ENTITY_LIST={["RushMoving"]="Rush",["AmbushMoving"]="Ambush",["Eyes"]="Eyes",["Lookman"]="Eyes",["BackdoorRush"]="Blitz",["BackdoorLookman"]="Lookman",["A60"]="A-60",["A120"]="A-120",["GloombatSwarm"]="Gloombat Swarm",["GlitchRush"]="RNIUSHCG==",["GlitchAmbush"]="AR0xMBUSH",["MonumentEntity"]="Monument",["JeffTheKiller"]="Jeff the Killer",["FrozenAmbush"]="Frozen Ambush",["SallyMoving"]="Sally",["Groundskeeper"]="Groundskeeper"}
+local notified={}
+
+local function showNotification(name)
+	local frame=Instance.new("Frame")
+	frame.Size=UDim2.new(0,320,0,70)
+	frame.Position=UDim2.new(0.5,-160,0,-100)
+	frame.BackgroundColor3=Color3.fromRGB(150,0,0)
+	frame.BorderSizePixel=0
+	frame.Parent=notifGui
+	local c=Instance.new("UICorner") c.CornerRadius=UDim.new(0,12) c.Parent=frame
+	local st=Instance.new("UIStroke") st.Color=Color3.fromRGB(255,100,100) st.Thickness=3 st.Parent=frame
+	local title=Instance.new("TextLabel")
+	title.Size=UDim2.new(1,0,0,26)
+	title.Position=UDim2.new(0,0,0,8)
+	title.BackgroundTransparency=1
+	title.Text="⚠ МОНСТР ⚠"
+	title.TextColor3=Color3.fromRGB(255,255,255)
+	title.Font=Enum.Font.GothamBold
+	title.TextSize=18
+	title.Parent=frame
+	local nl=Instance.new("TextLabel")
+	nl.Size=UDim2.new(1,0,0,24)
+	nl.Position=UDim2.new(0,0,0,36)
+	nl.BackgroundTransparency=1
+	nl.Text=name
+	nl.TextColor3=Color3.fromRGB(255,220,100)
+	nl.Font=Enum.Font.GothamBold
+	nl.TextSize=20
+	nl.Parent=frame
+	local s=Instance.new("Sound")
+	s.SoundId="rbxassetid://4896323111"
+	s.Volume=2
+	s.Parent=frame
+	s:Play()
+	TweenService:Create(frame,TweenInfo.new(0.4,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{Position=UDim2.new(0.5,-160,0,40)}):Play()
+	task.delay(3,function()
+		local t=TweenService:Create(frame,TweenInfo.new(0.4,Enum.EasingStyle.Quad,Enum.EasingDirection.In),{Position=UDim2.new(0.5,-160,0,-100),BackgroundTransparency=1})
+		t:Play()
+		for _,obj in ipairs(frame:GetDescendants()) do
+			if obj:IsA("TextLabel") then TweenService:Create(obj,TweenInfo.new(0.4),{TextTransparency=1}):Play()
+			elseif obj:IsA("UIStroke") then TweenService:Create(obj,TweenInfo.new(0.4),{Transparency=1}):Play() end
+		end
+		t.Completed:Connect(function() frame:Destroy() end)
+	end)
+end
+workspace.DescendantAdded:Connect(function(obj)
+	if not notifyEnabled then return end
+	local alias=ENTITY_LIST[obj.Name]
+	if alias and not notified[obj] then
+		notified[obj]=true
+		showNotification(alias)
+		task.delay(15,function() notified[obj]=nil end)
+	end
+end)
+notifyBg.MouseButton1Click:Connect(function()
+	notifyEnabled=not notifyEnabled
+	if notifyEnabled then sOn(notifyBg,notifyKnob) else sOff(notifyBg,notifyKnob) notified={} end
+end)
+
+local savedAntiLag={}
 local function isScreechSound(obj)
 	if not obj.Parent then return false end
-	local parentName = string.lower(obj.Parent.Name)
-	return string.find(parentName, "screech", 1, true) ~= nil
+	local pn=string.lower(obj.Parent.Name)
+	return string.find(pn,"screech",1,true)~=nil
 end
-
 local function applyAntiLag()
-	for _, obj in ipairs(workspace:GetDescendants()) do
+	for _,obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("BasePart") or obj:IsA("Decal") or obj:IsA("Texture") then
-			if not savedAntiLag[obj] then
-				savedAntiLag[obj] = {
-					Material = obj:IsA("BasePart") and obj.Material or nil,
-					TextureID = obj:IsA("Decal") and obj.Texture or (obj:IsA("Texture") and obj.Texture or nil),
-					Transparency = obj:IsA("BasePart") and obj.Transparency or nil,
-				}
-			end
-
-			if obj:IsA("BasePart") then
-				obj.Material = Enum.Material.SmoothPlastic
-				obj.Reflectance = 0
-			elseif obj:IsA("Decal") or obj:IsA("Texture") then
-				obj.Transparency = 1
-			end
-		elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail")
-			or obj:IsA("Smoke") or obj:IsA("Fire")
-			or obj:IsA("Sparkles") or obj:IsA("Beam") then
-			obj.Enabled = false
+			if not savedAntiLag[obj] then savedAntiLag[obj]={Material=obj:IsA("BasePart") and obj.Material or nil} end
+			if obj:IsA("BasePart") then obj.Material=Enum.Material.SmoothPlastic obj.Reflectance=0
+			elseif obj:IsA("Decal") or obj:IsA("Texture") then obj.Transparency=1 end
+		elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") or obj:IsA("Beam") then
+			obj.Enabled=false
 		elseif obj:IsA("Sound") then
-			if isScreechSound(obj) then
-				obj.Volume = 1
-			else
-				obj.Volume = 0
-			end
+			if isScreechSound(obj) then obj.Volume=1 else obj.Volume=0 end
 		end
 	end
 end
-
 local function restoreAntiLag()
-	for obj, data in pairs(savedAntiLag) do
-		if obj and obj.Parent then
-			if obj:IsA("BasePart") and data.Material then
-				obj.Material = data.Material
-			elseif obj:IsA("Decal") or obj:IsA("Texture") then
-				obj.Transparency = 0
-			elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail")
-				or obj:IsA("Smoke") or obj:IsA("Fire")
-				or obj:IsA("Sparkles") or obj:IsA("Beam") then
-				obj.Enabled = true
-			elseif obj:IsA("Sound") then
-				obj.Volume = 1
-			end
-		end
+	for obj,data in pairs(savedAntiLag) do
+		if obj and obj.Parent and obj:IsA("BasePart") and data.Material then obj.Material=data.Material end
 	end
-	savedAntiLag = {}
+	savedAntiLag={}
 end
+lagBg.MouseButton1Click:Connect(function()
+	lagEnabled=not lagEnabled
+	if lagEnabled then sOn(lagBg,lagKnob) applyAntiLag() else sOff(lagBg,lagKnob) restoreAntiLag() end
+end)
 
-track(workspace.DescendantAdded:Connect(function(obj)
-	if not antiLagEnabled then return end
-	task.wait(0.1)
-	if obj:IsA("BasePart") then
-		obj.Material = Enum.Material.SmoothPlastic
-		obj.Reflectance = 0
-	elseif obj:IsA("Decal") or obj:IsA("Texture") then
-		obj.Transparency = 1
-	elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail")
-		or obj:IsA("Smoke") or obj:IsA("Fire")
-		or obj:IsA("Sparkles") or obj:IsA("Beam") then
-		obj.Enabled = false
-	elseif obj:IsA("Sound") then
-		if isScreechSound(obj) then
-			obj.Volume = 1
-		else
-			obj.Volume = 0
-		end
-	end
-end))
+player.CharacterAdded:Connect(function()
+	task.wait(1)
+	if speedEnabled then cleanupSpeed() applySpeed() end
+	if bypassEnabled then setupBypass(player.Character) end
+end)
 
-track(lagSwitchBg.MouseButton1Click:Connect(function()
-	antiLagEnabled = not antiLagEnabled
+makeDraggable(buttonHolder,toggleButton,function() return not isLocked end)
+makeDraggable(buttonHolder,lockButton,function() return not isLocked end)
+makeDraggable(buttonHolder,unloadButton,function() return not isLocked end)
+makeDraggable(menu,menu,function() return not isLocked end)
 
-	if antiLagEnabled then
-		switchOn(lagSwitchBg, lagSwitchKnob)
-		applyAntiLag()
-	else
-		switchOff(lagSwitchBg, lagSwitchKnob)
-		restoreAntiLag()
-	end
-end))
-
-local menuOpen = false
-track(toggleButton.MouseButton1Click:Connect(function()
-	menuOpen = not menuOpen
+local menuOpen=false
+toggleButton.MouseButton1Click:Connect(function()
+	menuOpen=not menuOpen
+	menu.Visible=menuOpen
 	if menuOpen then
-		menu.Visible = true
-		menu.Position = UDim2.new(
-			buttonHolder.Position.X.Scale,
-			buttonHolder.Position.X.Offset,
-			buttonHolder.Position.Y.Scale,
-			buttonHolder.Position.Y.Offset + 50
-		)
-	else
-		menu.Visible = false
+		menu.Position=UDim2.new(buttonHolder.Position.X.Scale,buttonHolder.Position.X.Offset,buttonHolder.Position.Y.Scale,buttonHolder.Position.Y.Offset+50)
 	end
-end))
+end)
 
-local isLocked = false
-local function updateLockLook()
+lockButton.MouseButton1Click:Connect(function()
+	isLocked=not isLocked
 	if isLocked then
-		lockButton.Text = "Locked"
-		lockButton.BackgroundColor3 = Color3.fromRGB(75, 0, 130)
+		lockButton.Text="Locked"
+		lockButton.BackgroundColor3=Color3.fromRGB(75,0,130)
 	else
-		lockButton.Text = "Unlocked"
-		lockButton.BackgroundColor3 = Color3.fromRGB(120, 0, 200)
+		lockButton.Text="Unlocked"
+		lockButton.BackgroundColor3=Color3.fromRGB(120,0,200)
 	end
-end
-updateLockLook()
+end)
 
-track(lockButton.MouseButton1Click:Connect(function()
-	isLocked = not isLocked
-	updateLockLook()
-end))
+unloadButton.MouseButton1Click:Connect(function()
+	speedEnabled=false
+	fovEnabled=false
+	fbEnabled=false
+	espEnabled=false
+	toolEnabled=false
+	promptEnabled=false
+	monsterEnabled=false
+	instantEnabled=false
+	bypassEnabled=false
+	doorEnabled=false
+	notifyEnabled=false
+	lagEnabled=false
+	anticheatDisabled=false
 
-makeDraggable(buttonHolder, toggleButton, function() return not isLocked end)
-makeDraggable(buttonHolder, lockButton, function() return not isLocked end)
-makeDraggable(buttonHolder, unloadButton, function() return not isLocked end)
-makeDraggable(menu, menu, function() return not isLocked end)
+	pcall(cleanupSpeed)
+	pcall(clearAllESP)
+	pcall(clearAllToolESP)
+	pcall(clearAllPromptESP)
+	pcall(clearAllMonsterESP)
+	pcall(restoreAntiLag)
 
-track(unloadButton.MouseButton1Click:Connect(function()
-	for _, conn in ipairs(connections) do
-		pcall(function() conn:Disconnect() end)
+	if savedLight.saved then
+		Lighting.Ambient=savedLight.Ambient
+		Lighting.OutdoorAmbient=savedLight.OutdoorAmbient
+		Lighting.Brightness=savedLight.Brightness
+		Lighting.ClockTime=savedLight.ClockTime
+		Lighting.GlobalShadows=savedLight.GlobalShadows
+		Lighting.FogEnd=savedLight.FogEnd
+		savedLight={}
 	end
-	connections = {}
-
-	pcall(function() cleanupSpeed() end)
-	pcall(function() clearAllESP() end)
-	pcall(function() clearAllToolESP() end)
-	pcall(function() clearAllPromptESP() end)
-	pcall(function() clearAllMonsterESP() end)
-	pcall(function() restoreAllPrompts() end)
-	pcall(function() restoreFullbright() end)
-	pcall(function() restoreAntiLag() end)
 
 	if notifGui and notifGui.Parent then notifGui:Destroy() end
+	if gui and gui.Parent then gui:Destroy() end
+end)
 
-	for _, obj in ipairs(workspace:GetChildren()) do
-		if obj.Name == "ESP_GhostFolder" then obj:Destroy() end
-	end
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj.Name == "ESP_Ghost" then obj:Destroy() end
-	end
-
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		local n = obj.Name
-		if n == "ESP_Highlight" or n == "ESP_Billboard"
-			or n == "ToolESP_Highlight" or n == "ToolESP_Billboard"
-			or n == "PromptESP_Highlight" or n == "PromptESP_Billboard"
-			or n == "MonsterESP_Highlight" or n == "MonsterESP_Billboard" then
-			obj:Destroy()
-		end
-	end
-
-	if gui and gui.Parent then
-		gui:Destroy()
-	end
-end))
-
-print("[MENU] Loaded. hookmetamethod:", hookOk and "OK" or "NOT SUPPORTED", "| ESP_RADIUS:", ESP_RADIUS)
+print("[MENU] Loaded. hookmetamethod:",hookOk and "OK" or "NOT SUPPORTED")
